@@ -70,9 +70,10 @@ ArduinoOutStream cout(Serial);
 stateMachine sm = stateMachine();
 XPT2046_Touchscreen gts  = XPT2046_Touchscreen(CS_PIN);
 ILI9341_t3n gtft         = ILI9341_t3n(TFT_CS, TFT_DC, TFT_RST);
-//EXTMEM char fileNameBuff[256];
 EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
 EXTMEM uint16_t wallpaper[DISP_WIDTH*DISP_HEIGHT];
+EXTMEM char** fileListBuff;
+
 
 //=============================================================================
 // USB Host Ojbects
@@ -90,8 +91,6 @@ bool driver_active[CNT_DEVICES]       = {false, false, false};
 // Array of function pointers, passing only the statemachine
 // functions are called by index
 void (* SCREENS[4]) (stateMachine*);
-
-EXTMEM char** fileListBuff;
 
 void doQuack(stateMachine* sm){
   doHomeScreen(sm);
@@ -122,8 +121,8 @@ void setup() {
 
   // Initialize function pointers
   SCREENS[SCREEN_CALIBRATION] = doCalibrate;
-  //SCREENS[SCREEN_HOME]        = doHomeScreen;
-  SCREENS[SCREEN_HOME]        = doQuack;
+  SCREENS[SCREEN_HOME]        = doHomeScreen;
+  //SCREENS[SCREEN_HOME]        = doQuack;
   SCREENS[SCREEN_IMAGEVIEWER] = doImageViewer;
   SCREENS[SCREEN_PASSWORDMAN] = doPassMan;
   //SCREENS[SCREEN_CROSSHAIRDEMO] = doCrosshairDemo;
@@ -160,11 +159,6 @@ void setup() {
 }
 
 void loop() {
-  // Call Screen function to draw according function
-  //sm.currTouch = sm.ts->touched();
-  //TS_Point p = sm.ts->getPoint();
-  //sm.TouchX = map(p.x, sm.minXTS, sm.maxXTS, 0, DISP_WIDTH);
-  //sm.TouchY = map(p.y, sm.minYTS, sm.maxYTS, DISP_HEIGHT, 0);
   sm.updateTouchStatus();
   if (sm.getCurrTouch()) {
     Serial.println(sm.getTouchX());
@@ -173,8 +167,6 @@ void loop() {
   (* SCREENS[sm.getScreen()])(&sm);
   drawStatusBars(&sm);
   sm.tft->updateScreen();
-  //sm.prevTouch = sm.currTouch;
-  //delay(1);
 }
 
 void doCrosshairDemo(stateMachine* sm) {
