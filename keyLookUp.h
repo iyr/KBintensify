@@ -1,9 +1,23 @@
+#ifndef _KEYLOOKUP_
+#define _KEYLOOKUP_
+
+#include "Arduino.h"
 #define NUM_HID_ENTRIES 111
+// Use lookup tables to convert USB HID key codes
+// to what Arduino/Teensyduino uses.
+uint16_t HID2ArduKEY(const int hidkey);
+uint16_t HID2ArduKEY(const int hidkey, const bool shifted);
+
+void delShort(short *inputArr, uint16_t buffSize, uint16_t index);
+void delChar(char *inputString, uint16_t index, uint16_t numChars);
+void insChar(char *inputString, uint16_t buffSize, uint16_t index, const char Character);
+
+// Returns the bitmask integer of which modifiers
+// are active based on whether their keys were pressed
+int getModMask(const int key, const bool press);
+
 // Key values set based on US keyboard layout
 // Likely needs tweaks depending on layout
-
-// Used to determine which look-up table to use
-bool SHIFTED = false;
 
 // HID ASCII-ish set for lower-case entries
 const uint16_t hidascii_lc[NUM_HID_ENTRIES] = {
@@ -235,64 +249,4 @@ const uint16_t hidascii_uc[NUM_HID_ENTRIES] = {
     KEY_RIGHT_GUI
 };
 
-// Use lookup tables to convert USB HID key codes
-// to what Arduino/Teensyduino uses.
-uint16_t HID2ArduKEY(const int hidkey){
-
-  // Return the input key if outside
-  // look-up table length
-  if (hidkey >= NUM_HID_ENTRIES) return hidkey;
-
-  // Determine which look-up table to use, return
-  if (SHIFTED) {
-    return hidascii_uc[hidkey];
-  } else {
-    return hidascii_lc[hidkey];
-  }
-}
-
-// Returns the bitmask integer of which modifiers
-// are active based on whether their keys were pressed
-int setMods(const int key, const bool press) {
-
-  // Used to track whether a modifier bitmask
-  // should be set
-  static bool LCTRL  = false;
-  static bool LSHIFT = false;
-  static bool LALT   = false;
-  static bool LGUI   = false;
-  static bool RCTRL  = false;
-  static bool RSHIFT = false;
-  static bool RALT   = false;
-  static bool RGUI   = false;
-
-  // Set global modifier bools
-  const int ArduKey = HID2ArduKEY(key);
-  switch (ArduKey) {
-    case KEY_LEFT_CTRL:   LCTRL   = press; break;
-    case KEY_LEFT_SHIFT:  LSHIFT  = press; break;
-    case KEY_LEFT_ALT:    LALT    = press; break;
-    case KEY_LEFT_GUI:    LGUI    = press; break;
-    case KEY_RIGHT_CTRL:  RCTRL   = press; break;
-    case KEY_RIGHT_SHIFT: RSHIFT  = press; break;
-    case KEY_RIGHT_ALT:   RALT    = press; break;
-    case KEY_RIGHT_GUI:   RGUI    = press; break;
-  }
-
-  // Set shifted bool
-  SHIFTED = (LSHIFT || RSHIFT);
-
-  // Build modifier int from bitmasks
-  int mods = 0;
-  if (LCTRL)  mods = (mods | MODIFIERKEY_CTRL       );
-  if (LSHIFT) mods = (mods | MODIFIERKEY_SHIFT      );
-  if (LALT)   mods = (mods | MODIFIERKEY_ALT        );
-  if (LGUI)   mods = (mods | MODIFIERKEY_GUI        );
-  if (RCTRL)  mods = (mods | MODIFIERKEY_RIGHT_CTRL );
-  if (RSHIFT) mods = (mods | MODIFIERKEY_RIGHT_SHIFT);
-  if (RALT)   mods = (mods | MODIFIERKEY_RIGHT_ALT  );
-  if (RGUI)   mods = (mods | MODIFIERKEY_RIGHT_GUI  );
-
-  return mods;
-}
-
+#endif
