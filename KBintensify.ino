@@ -74,7 +74,6 @@ EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
 EXTMEM uint16_t wallpaper[DISP_WIDTH*DISP_HEIGHT];
 EXTMEM char** fileListBuff;
 
-
 //=============================================================================
 // USB Host Ojbects
 //=============================================================================
@@ -159,12 +158,17 @@ void setup() {
 }
 
 void loop() {
-  sm.updateTouchStatus();
-  if (sm.getCurrTouch()) {
-    Serial.println(sm.getTouchX());
+  //sm.pressedKey = 0;
+  //sm.updateInputKeys();
+  if (sm.getCurrTouch() && sm.getScreen() != 0 ) {
+    Serial.print(sm.getTouchX());
+    Serial.print(F(" "));
     Serial.println(sm.getTouchY());
   }
+  if (sm.getNumKeysPressed() == 0) sm.clearPressedKeys();
   (* SCREENS[sm.getScreen()])(&sm);
+  sm.updateTouchStatus();
+  sm.updateSM();
   drawStatusBars(&sm);
   sm.tft->updateScreen();
 }
@@ -183,8 +187,11 @@ void doCrosshairDemo(stateMachine* sm) {
 void OnRawPress(int key){
   if (sm.getKeyStrokePassthrough()) {
     Keyboard.press(HID2ArduKEY(key));
-    Keyboard.set_modifier(setMods(key, true)); // true to enable modifier if pressed
+    Keyboard.set_modifier(getModMask(key, true)); // true to enable modifier if pressed
   }
+  sm.incNumKeysPressed();
+  sm.modifiers = getModMask(key,true);
+  sm.setPressedKey(key);
 
   // Use Escape to "unstick" buggersome key inputs
   if (HID2ArduKEY(key) == KEY_ESC){ Keyboard.releaseAll(); Keyboard.set_modifier(0); }
@@ -198,8 +205,11 @@ void OnRawPress(int key){
 void OnRawRelease(int key){
   if (sm.getKeyStrokePassthrough()) {
     Keyboard.release(HID2ArduKEY(key));
-    Keyboard.set_modifier(setMods(key, false)); // false to disable modifier if released
+    Keyboard.set_modifier(getModMask(key, false)); // false to disable modifier if released
   }
+  sm.decNumKeysPressed();
+  sm.modifiers = getModMask(key,false);
+  sm.setReleasedKey(key);
 
   //Serial.print("HID REL: ");
   //Serial.println(key);
@@ -440,18 +450,20 @@ void OnHIDExtrasPress(uint32_t top, uint16_t key)
   */
 
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.set_modifier(setMods(key, true));
+    Keyboard.set_modifier(getModMask(key, true));
     Keyboard.press(key | 0xE400);
   }
+  sm.incNumKeysPressed();
   return;
 }
 
 void OnHIDExtrasRelease(uint32_t top, uint16_t key)
 {
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.set_modifier(setMods(key, false));
+    Keyboard.set_modifier(getModMask(key, false));
     Keyboard.release(key | 0xE400);
   }
+  sm.decNumKeysPressed();
   return;
 }
 
