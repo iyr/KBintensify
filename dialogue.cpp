@@ -3,9 +3,13 @@
 
 #include "dialogue.h"
 #include "alphabetize.h"
+#include "pgmspace.h"
 
 extern char   fileNameBuff[];
 extern char** fileListBuff;
+
+//EXTMEM char fileListBuff[MAX_FILELIST_LENGTH][MAX_FILENAME_LENGTH];
+//EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
 
 // Returns true when (validated) selection has been made
 // updates filePath c-str pointer
@@ -399,10 +403,10 @@ FLASHMEM bool doFileOpen(
   // reset vars if user exits/returns to home screen via home button
   if (  sm->getPrevTouch() != sm->getCurrTouch()  &&
         sm->getCurrTouch() == false          ){
-    if (  TouchX <= 28+28 &&
-          TouchX >= 28-28 &&
-          TouchY <= DISP_HEIGHT-24+24 &&
-          TouchY >= DISP_HEIGHT-24-24 ){
+    if (  TouchX <= 2*buttonRadX             &&
+          TouchX >= 0                        &&
+          TouchY <= DISP_HEIGHT-2*buttonRadY &&
+          TouchY >= DISP_HEIGHT              ){
       selectedFile  = 0;
       numFiles      = -1;
       lowerLim      = 0;
