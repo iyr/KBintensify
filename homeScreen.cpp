@@ -13,6 +13,10 @@ void drawStatusBars(stateMachine* sm){
   // Convenience placeholders
   const   uint16_t  accentsColor  = sm->getDetailsColor();
   const   uint16_t  primaryColor  = sm->getPrimaryColor();
+  const   uint16_t  averageColor  = sm->getAverageColor();
+  const   uint16_t  accentsColorI = sm->getDetailsColorInverted();
+  const   uint16_t  primaryColorI = sm->getPrimaryColorInverted();
+  const   bool      passThruTru   = sm->getKeyStrokePassthrough();
 
   // Size of UI buttons
   const   uint8_t   buttonRadX    = 28;
@@ -71,8 +75,10 @@ void drawStatusBars(stateMachine* sm){
             primaryColor,
             accentsColor,
             sm
-            ))
+            )){
         sm->setScreen(1);
+        sm->enableKeyStrokePassthrough();
+      }
 
     uint16_t bx=8,
              by=0;
@@ -80,16 +86,23 @@ void drawStatusBars(stateMachine* sm){
     /*
      *  Display Keyboard, System connection status
      */
+
+    // Use color to indicate Keyboard input status
+    sm->tft->setTextColor(sm->getNumKeysPressed()==0?accentsColor:primaryColorI);
     bx += 200; by += 223;
     sm->tft->setCursor(bx, by);
     sm->tft->setFont(AwesomeF100_12);
     sm->tft->print((char)28); // Keyboard Symbol
 
+    // Use color to indicate key-held status
+    sm->tft->setTextColor(!sm->getKeyPressHeld()?accentsColor:primaryColorI);
     bx += 22; by += 3;
     sm->tft->setCursor(bx, by);
     sm->tft->setFont(AwesomeF000_10);
     sm->tft->print((char)84); // Right Arrow
 
+    // Use color to indicate touch sensor input status
+    sm->tft->setTextColor(!sm->getCurrTouch()?accentsColor:primaryColorI);
     bx += 12; by -= 0;
     sm->tft->setCursor(bx, by);
     sm->tft->setFont(Michroma_10);
@@ -97,19 +110,25 @@ void drawStatusBars(stateMachine* sm){
     sm->tft->setFont(Logisoso_12);
     sm->tft->print('i');
     
-    if (sm->getKeyStrokePassthrough()) {
+    // Use Color+Symbol to indicate keystroke passthrough status
+    if (passThruTru) {
+      sm->tft->setTextColor(accentsColor);
       bx += 36; by -= 0;
       sm->tft->setCursor(bx, by);
       sm->tft->setFont(AwesomeF000_10);
       sm->tft->print((char)84); // Right Arrow
     } else {
       bx += 34; by -= 1;
+      static bool flipCol = false;
+      sm->tft->setTextColor(flipCol?accentsColor:primaryColorI);
+      flipCol = !flipCol;
       sm->tft->setCursor(bx, by);
       sm->tft->setFont(AwesomeF000_10);
-      sm->tft->print((char)94); // Right Arrow
+      sm->tft->print((char)94); // Block symbol
       bx += 2; by += 1;
     }
     bx += 14; by -= 1;
+    sm->tft->setTextColor(passThruTru?accentsColor:averageColor);
     sm->tft->setCursor(bx, by);
     sm->tft->setFont(AwesomeF100_12);
     sm->tft->print((char)8); // Computer Symbol
@@ -121,6 +140,8 @@ void drawStatusBars(stateMachine* sm){
   prevHour    = hour();
   prevMinute  = minute();
   //prevSecond  = second();
+  
+  return;
 }
 
 /*
