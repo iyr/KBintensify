@@ -1,9 +1,23 @@
 #include "smStruct.h"
 
 stateMachine::stateMachine(void){
+  memset(this->pressedKeys, 0, PRESSED_KEYS_BUFF_SIZE*sizeof(short));
   return;
 };
 stateMachine::~stateMachine(void){
+  return;
+};
+
+void stateMachine::updateSM(void){
+
+  // Determine if key has been press long enough to repeat
+  if (abs(millis() - this->keyPressTimer) >= this->keyHoldTime) 
+    this->keyPressHeld = !(this->keyHoldCanceled);
+
+  if (this->numKeysPressed == 0){ this->keyPressHeld = false; this->keyHoldCanceled = false;}
+
+  // Clear released key
+  this->releasedKey = 0;
   return;
 };
 
@@ -42,6 +56,10 @@ uint8_t stateMachine::getScreen(void){
   return this->currentScreen;
 };
 
+void stateMachine::updateInputKeys(void){
+  return;
+};
+
 void stateMachine::updateTouchStatus(void){
   this->prevTouch = this->currTouch;
   this->currTouch = this->ts->touched();
@@ -62,12 +80,10 @@ bool stateMachine::getPrevTouch(void){
 };
 
 uint16_t stateMachine::getRawTouchX(void){
-  TS_Point p = this->ts->getPoint();
-  return p.x;
+  return this->ts->getPoint().x;
 };
 uint16_t stateMachine::getRawTouchY(void){
-  TS_Point p = this->ts->getPoint();
-  return p.y;
+  return this->ts->getPoint().y;
 };
 
 uint16_t stateMachine::getTouchX(void){
@@ -96,6 +112,14 @@ uint16_t stateMachine::getAverageColor(void){
   return ((mr << 11) | (mg << 5) | mb);
 };
 
+const uint16_t stateMachine::getPrimaryColorInverted(void){
+  return invert565color(this->primaryColor);
+};
+
+const uint16_t stateMachine::getDetailsColorInverted(void){
+  return invert565color(this->detailsColor);
+};
+
 bool stateMachine::getKeyStrokePassthrough(void){
   return this->keyPassthrough;
 };
@@ -108,3 +132,76 @@ void stateMachine::disableKeyStrokePassthrough(void){
   return;
 };
 
+void stateMachine::incNumKeysPressed(void){
+  if (this->numKeysPressed < 255) this->numKeysPressed++;
+  return;
+};
+
+void stateMachine::decNumKeysPressed(void){
+  if (this->numKeysPressed > 0) this->numKeysPressed--;
+  return;
+};
+
+uint16_t* stateMachine::getPressedKeys(void){
+  return (const uint16_t*)&this->pressedKeys;
+};
+
+void stateMachine::clearPressedKeys(void){
+  memset(this->pressedKeys, 0, PRESSED_KEYS_BUFF_SIZE*sizeof(uint16_t));
+  return;
+};
+
+void stateMachine::clearReleasedKey(void){
+  this->releasedKey = 0;
+  return;
+}
+
+const uint8_t stateMachine::getNumKeysPressed(void){
+  return this->numKeysPressed;
+};
+
+void stateMachine::setPressedKey(const uint16_t key){
+  for (uint16_t i = 0; i < PRESSED_KEYS_BUFF_SIZE-1; i++)
+    if (this->pressedKeys[i] == 0) {this->pressedKeys[i] = key; break;}
+
+  //this->keyWasPressed = true;
+  this->keyPressHeld  = false;
+  this->keyPressTimer = millis();
+  this->pressedKey    = key;
+  return;
+};
+
+const uint16_t stateMachine::getPressedKey(void){
+  const uint16_t tmp = this->pressedKey;
+  //this->pressedKey = 0;
+  return tmp;
+};
+
+void stateMachine::setReleasedKey(const uint16_t key){
+  for (uint16_t i = 0; i < PRESSED_KEYS_BUFF_SIZE-1; i++)
+    if (this->pressedKeys[i] == key) {delShort((short *)this->pressedKeys, PRESSED_KEYS_BUFF_SIZE, i);}
+
+  this->releasedKey = key;
+  return;
+};
+
+const uint16_t stateMachine::getReleasedKey(void){
+  return this->releasedKey;
+}
+
+const bool stateMachine::getKeyPressHeld(void){
+  return this->keyPressHeld;
+};
+
+void stateMachine::cancelKeyPressHold(void){
+  this->keyHoldCanceled = true;
+  this->keyPressHeld    = false;
+  return;
+};
+
+const uint16_t invert565color(const uint16_t color){
+  const uint16_t ir = 31 - (color >> 11);
+  const uint16_t ig = 63 - ((color & 2016) >> 5);
+  const uint16_t ib = 31 - (color & 31);
+  return ((ir << 11) | (ig << 5) | ib);
+}
