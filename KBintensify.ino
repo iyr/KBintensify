@@ -136,6 +136,10 @@ void setup() {
 
   // Initialize Display and Touch Sensor
   sm.initDevices();
+  if (sm.sd->exists("/userSettings.cfg")){
+    sm.loadUserSettings("/userSettings.cfg");
+    sm.setScreen(SCREEN_HOME);
+  }
 
   // 
   sm.tft->fillScreen(ILI9341_BLUE);
@@ -170,7 +174,8 @@ void loop() {
   sm.updateTouchStatus();
   sm.updateSM();
   drawStatusBars(&sm);
-  sm.tft->updateScreen();
+  if (sm.drawingEnabled()) sm.tft->updateScreen();
+  sm.captureFrameBufferToBackBuffer();
 }
 
 void doCrosshairDemo(stateMachine* sm) {
