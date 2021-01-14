@@ -8,6 +8,69 @@ stateMachine::~stateMachine(void){
   return;
 };
 
+void stateMachine::saveUserSettings(void){
+  //if (this->sd->exists("/userSettings.conf"))
+  this->sd->remove("/userSettings.cfg");
+
+  File configFile = this->sd->open("/userSettings.cfg", FILE_WRITE);
+  if (!configFile) {
+    Serial.println(F("Failed to create file"));
+    return;
+  }
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use arduinojson.org/assistant to compute the capacity.
+  StaticJsonDocument<256> doc;
+
+  // Set the values in the document
+  doc["minXTS"] = this->minXTS;
+  doc["minYTS"] = this->minYTS;
+  doc["maxXTS"] = this->maxXTS;
+  doc["maxYTS"] = this->maxYTS;
+
+  // Serialize JSON to file
+  if (serializeJson(doc, configFile) == 0) {
+    Serial.println(F("Failed to write to file"));
+  }
+
+  // Close the file
+  configFile.close();
+  return;
+};
+
+void stateMachine::loadUserSettings(const char* filepath){
+  // Open file for reading
+  File file = this->sd->open(filepath);
+  //File file = this->sd->open("/userSettings.cfg");
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use arduinojson.org/v6/assistant to compute the capacity.
+  StaticJsonDocument<512> doc;
+
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, file);
+  if (error)
+    Serial.println(F("Failed to read file, using default configuration"));
+
+  // Copy values from the JsonDocument to the Config
+  
+  // Get calibration variables
+  this->minXTS = doc["minXTS"];
+  this->minYTS = doc["minYTS"];
+  this->maxXTS = doc["maxXTS"];
+  this->maxYTS = doc["maxYTS"];
+
+  // Close the file (Curiously, File's destructor doesn't close the file)
+  file.close();
+  return;
+};
+
+void stateMachine::loadUserSettings(void){
+  return this->loadUserSettings("/userSettings.cfg");
+};
+
 void stateMachine::updateSM(void){
 
   // Determine if key has been press long enough to repeat
@@ -52,57 +115,36 @@ void stateMachine::setScreen(const uint8_t screen) {
   currentScreen = constrain(screen, 0, 3);
   return;
 };
-uint8_t stateMachine::getScreen(void){
+const uint8_t stateMachine::getScreen(void){
   return this->currentScreen;
 };
 
-void stateMachine::updateInputKeys(void){
+void stateMachine::captureFrameBufferToBackBuffer(void){
+  //memset(this->backBuffer, -1, DISP_WIDTH*DISP_HEIGHT*sizeof(uint16_t));
+  memcpy(
+      this->backBuffer,
+      this->tft->getFrameBuffer(),
+      DISP_WIDTH*DISP_HEIGHT*sizeof(uint16_t)
+      );
+  //uint16_t* tmp = this->tft->getFrameBuffer();
+  //for (uint32_t i = 0; i < DISP_WIDTH*DISP_HEIGHT; i++)
+    //this->backBuffer[i] = tmp[i];
   return;
 };
 
-void stateMachine::updateTouchStatus(void){
-  this->prevTouch = this->currTouch;
-  this->currTouch = this->ts->touched();
-  TS_Point p      = this->ts->getPoint();
-  if (this->currentScreen > 0){
-    this->TouchX    = map(p.x, this->minXTS, this->maxXTS, 0, DISP_WIDTH);
-    this->TouchY    = map(p.y, this->minYTS, this->maxYTS, DISP_HEIGHT, 0);
-  }
-  return;
+uint16_t* stateMachine::getBackBuffer(void){
+  return this->backBuffer;
 };
 
-bool stateMachine::getCurrTouch(void){
-  return this->currTouch;
-};
-
-bool stateMachine::getPrevTouch(void){
-  return this->prevTouch;
-};
-
-uint16_t stateMachine::getRawTouchX(void){
-  return this->ts->getPoint().x;
-};
-uint16_t stateMachine::getRawTouchY(void){
-  return this->ts->getPoint().y;
-};
-
-uint16_t stateMachine::getTouchX(void){
-  return this->TouchX;
-}
-
-uint16_t stateMachine::getTouchY(void){
-  return this->TouchY;
-}
-
-uint16_t stateMachine::getPrimaryColor(void){
+const uint16_t stateMachine::getPrimaryColor(void){
   return this->primaryColor;
 };
 
-uint16_t stateMachine::getDetailsColor(void){
+const uint16_t stateMachine::getDetailsColor(void){
   return this->detailsColor;
 };
 
-uint16_t stateMachine::getAverageColor(void){
+const uint16_t stateMachine::getAverageColor(void){
   // Averages two 16-bit (5-6-5) RGB colors
   const uint16_t colorA = this->primaryColor;
   const uint16_t colorB = this->detailsColor;
@@ -120,7 +162,75 @@ const uint16_t stateMachine::getDetailsColorInverted(void){
   return invert565color(this->detailsColor);
 };
 
-bool stateMachine::getKeyStrokePassthrough(void){
+void stateMachine::updateInputKeys(void){
+  return;
+};
+
+void stateMachine::updateTouchStatus(void){
+  this->prevTouch = this->currTouch;
+  this->currTouch = this->ts->touched();
+  TS_Point p      = this->ts->getPoint();
+  if (this->currentScreen > 0){
+    this->TouchX  = map(p.x, this->minXTS, this->maxXTS, 0, DISP_WIDTH);
+    this->TouchY  = map(p.y, this->minYTS, this->maxYTS, DISP_HEIGHT, 0);
+  }
+  return;
+};
+
+const bool stateMachine::getCurrTouch(void){
+  return this->currTouch;
+};
+
+const bool stateMachine::getPrevTouch(void){
+  return this->prevTouch;
+};
+
+const uint16_t stateMachine::getRawTouchX(void){
+  return this->ts->getPoint().x;
+};
+const uint16_t stateMachine::getRawTouchY(void){
+  return this->ts->getPoint().y;
+};
+
+const uint16_t stateMachine::getTouchX(void){
+  return this->TouchX;
+};
+
+const uint16_t stateMachine::getTouchY(void){
+  return this->TouchY;
+};
+
+const bool stateMachine::touchEnabled(void){
+  return this->touchInputEnabled;
+};
+
+void stateMachine::disableTouchInput(void){
+  this->touchInputEnabled = false;
+  //this->updateTouchStatus();
+  return;
+};
+
+void stateMachine::enableTouchInput(void){
+  this->touchInputEnabled = true;
+  //this->updateTouchStatus();
+  return;
+};
+
+const bool stateMachine::drawingEnabled(void){
+  return this->screenDrawingEnabled;
+};
+
+void stateMachine::disableDrawing(void){
+  this->screenDrawingEnabled = false;
+  return;
+};
+
+void stateMachine::enableDrawing(void){
+  this->screenDrawingEnabled = true;
+  return;
+};
+
+const bool stateMachine::getKeyStrokePassthrough(void){
   return this->keyPassthrough;
 };
 void stateMachine::enableKeyStrokePassthrough(void){
@@ -154,7 +264,7 @@ void stateMachine::clearPressedKeys(void){
 void stateMachine::clearReleasedKey(void){
   this->releasedKey = 0;
   return;
-}
+};
 
 const uint8_t stateMachine::getNumKeysPressed(void){
   return this->numKeysPressed;
@@ -187,7 +297,7 @@ void stateMachine::setReleasedKey(const uint16_t key){
 
 const uint16_t stateMachine::getReleasedKey(void){
   return this->releasedKey;
-}
+};
 
 const bool stateMachine::getKeyPressHeld(void){
   return this->keyPressHeld;
@@ -199,9 +309,18 @@ void stateMachine::cancelKeyPressHold(void){
   return;
 };
 
+void stateMachine::setModifiers(const uint8_t modifierMask){
+  this->modifiers = modifierMask;
+  return;
+};
+
+const uint8_t stateMachine::getModifiers(void){
+  return this->modifiers;
+};
+
 const uint16_t invert565color(const uint16_t color){
   const uint16_t ir = 31 - (color >> 11);
   const uint16_t ig = 63 - ((color & 2016) >> 5);
   const uint16_t ib = 31 - (color & 31);
   return ((ir << 11) | (ig << 5) | ib);
-}
+};
