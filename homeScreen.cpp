@@ -17,12 +17,15 @@ void drawStatusBars(stateMachine* sm){
   const   uint16_t  accentsColorI = sm->getDetailsColorInverted();
   const   uint16_t  primaryColorI = sm->getPrimaryColorInverted();
   const   bool      passThruTru   = sm->getKeyStrokePassthrough();
+  const   bool      touchEnabled  = sm->touchEnabled();
 
   // Size of UI buttons
   const   uint8_t   buttonRadX    = 28;
   const   uint8_t   buttonRadY    = 24;
 
   if (sm->getScreen() == 0) return;
+
+  sm->enableTouchInput();
 
   if (sm->getCurrTouch() != sm->getPrevTouch()) {
     //if (!currTouch)
@@ -141,6 +144,7 @@ void drawStatusBars(stateMachine* sm){
   prevMinute  = minute();
   //prevSecond  = second();
   
+  if (!touchEnabled) sm->disableTouchInput();
   return;
 }
 
@@ -382,6 +386,8 @@ void doHomeScreen(stateMachine* sm){
   const   uint8_t   buttonRadX    = 28;
   const   uint8_t   buttonRadY    = 24;
 
+  sm->enableDrawing();
+  sm->enableTouchInput();
   sm->tft->fillScreen(ILI9341_BLACK);
 
   uint16_t posX=32,
@@ -497,6 +503,21 @@ void doHomeScreen(stateMachine* sm){
            )){
   }
 
+  posY+=(2*buttonRadY)+3;
+  memset(titleBuff, '\0', 32);
+  strcpy(titleBuff, "Save Settings");
+  if (doIconTextButton(
+           posX, posY,
+           buttonRadX, buttonRadY,  -5,
+           titleBuff,
+           AwesomeF100_18,
+           (char)68,
+           primaryColor,
+           accentsColor,
+           sm
+           )){
+    sm->saveUserSettings();
+  }
   return;
 }
 
