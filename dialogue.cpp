@@ -7,6 +7,7 @@
 
 extern char   fileNameBuff[];
 extern char** fileListBuff;
+static bool   dialogueEntered = false;
 
 //EXTMEM char fileListBuff[MAX_FILELIST_LENGTH][MAX_FILENAME_LENGTH];
 //EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
@@ -20,6 +21,12 @@ FLASHMEM bool doFileOpen(
       bool (*valid)(char *, stateMachine *),
       stateMachine* sm
       ){
+
+  //if (!dialogueEntered) sm->captureFrameBufferToBackBuffer();
+  sm->tft->writeRect(0, 0, DISP_WIDTH, DISP_HEIGHT, sm->getBackBuffer());
+  dialogueEntered = true;
+  sm->enableTouchInput();
+  sm->disableDrawing();
 
   // Used for drawing individual glyphs
   char iconGlyph[3] = {'\0'};
@@ -295,7 +302,6 @@ FLASHMEM bool doFileOpen(
       if (fileNameBuff[i] == '/' && i != prevFNlen-1 ) curDirInd = i;
     for (uint8_t i = curDirInd+1; i < prevFNlen; i++)
       fileNameBuff[i] = '\0';
-    //return true;
     selectionMade = true;
   }
 
@@ -414,6 +420,17 @@ FLASHMEM bool doFileOpen(
       memset(fileNameBuff, '\0', MAX_FILEPATH_LENGTH);
       strcpy(fileNameBuff, "/");
     }
+  }
+
+  if (selectionMade){
+    sm->enableTouchInput(); 
+    sm->enableDrawing();
+    dialogueEntered = false;
+  }
+  else 
+  {
+    sm->disableTouchInput();
+    sm->tft->updateScreen();
   }
 
   return selectionMade;
