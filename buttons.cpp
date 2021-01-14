@@ -62,7 +62,8 @@ bool doIconTextButton(
   sm->tft->drawString1(tmp, 3, posX, Yadjust+(posY-radY/2));
 
   // Highlight Icon if cursor over, but touch not released
-  if (sm->getCurrTouch()){
+  if (  sm->touchEnabled()  &&
+        sm->getCurrTouch()  ){
     if (  TouchX <= posX+radX &&
           TouchX >= posX-radX &&
           TouchY <= posY+radY &&
@@ -78,7 +79,8 @@ bool doIconTextButton(
   }
 
   // Touch released
-  if (  sm->getPrevTouch() != sm->getCurrTouch()  &&
+  if (  sm->touchEnabled()                        &&
+        sm->getPrevTouch() != sm->getCurrTouch()  &&
         sm->getCurrTouch() == false          ){
     if (  TouchX <= posX+radX &&
           TouchX >= posX-radX &&
@@ -112,6 +114,7 @@ bool doIconButton(
       const char        symbol,     // shortcut symbol glyph
       const uint16_t    bgColor,    // Button background color
       const uint16_t    dtColor,    // Button details/accents color
+      const bool        drawBorder, // Draw button border
       stateMachine*     sm          // Statemachine
       ){
 
@@ -135,24 +138,19 @@ bool doIconButton(
   tmp[0] = symbol;
   sm->tft->drawString1(tmp, 3, posX, Yadjust+(posY-radY/2));
 
-  // Highlight Icon if cursor over, but touch not released
-  //if (sm->getCurrTouch()){
-    //if (  TouchX <= posX+radX &&
-          //TouchX >= posX-radX &&
-          //TouchY <= posY+radY &&
-          //TouchY >= posY-radY ){
-      sm->tft->drawRoundRect(
-          posX-radX, posY-radY, 
-          radX*2, radY*2, 
-          min(radX, radY)/3, 
-          dtColor
-          );
-    //}
-  //}
+  // Draw Button border
+  if (drawBorder)
+    sm->tft->drawRoundRect(
+        posX-radX, posY-radY, 
+        radX*2, radY*2, 
+        min(radX, radY)/3, 
+        dtColor
+        );
 
   // Touch released
-  if (  sm->getPrevTouch() != sm->getCurrTouch()  &&
-        sm->getCurrTouch() == false          ){
+  if (  sm->touchEnabled()                        &&
+        sm->getPrevTouch() != sm->getCurrTouch()  &&
+        sm->getCurrTouch() == false               ){
     if (  TouchX <= posX+radX &&
           TouchX >= posX-radX &&
           TouchY <= posY+radY &&
@@ -169,4 +167,31 @@ bool doIconButton(
   }
 
   return false;
+}
+
+bool doIconButton(
+      const uint16_t    posX,       // X-Position to draw button
+      const uint16_t    posY,       // Y- Position to draw button
+      const uint8_t     radX,       // X-radius of the button
+      const uint8_t     radY,       // Y-radius of the button
+      const int8_t      Yadjust,    // used for fine-tuning troublesome glyphs
+      ILI9341_t3_font_t symbolFont, // Font for shortcut symbol glyph
+      const char        symbol,     // shortcut symbol glyph
+      const uint16_t    bgColor,    // Button background color
+      const uint16_t    dtColor,    // Button details/accents color
+      stateMachine*     sm          // Statemachine
+      ){
+  return doIconButton(
+      posX,       // X-Position to draw button
+      posY,       // Y- Position to draw button
+      radX,       // X-radius of the button
+      radY,       // Y-radius of the button
+      Yadjust,    // used for fine-tuning troublesome glyphs
+      symbolFont, // Font for shortcut symbol glyph
+      symbol,     // shortcut symbol glyph
+      bgColor,    // Button background color
+      dtColor,    // Button details/accents color
+      true,
+      sm          // Statemachine
+      );
 }
