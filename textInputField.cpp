@@ -262,6 +262,7 @@ bool drawTextInputField(
 
   if (active) sm->disableKeyStrokePassthrough();
 
+  uint16_t          tmpCursor     = constrain((* inputCursor), 0, buffSize-1);
   // Convenience placeholders
   const   uint16_t  accentsColor  = sm->getDetailsColor();
   const   uint16_t  primaryColor  = sm->getPrimaryColor();
@@ -299,29 +300,29 @@ bool drawTextInputField(
       accentsColor);
 
   sm->tft->setTextColor(active?accentsColor:averageColor);
-  sm->tft->drawString1(textBuffer, strlen(textBuffer)+2, posX, posY);
+  sm->tft->drawString1(textBuffer, min(strlen(textBuffer)+2, buffSize+1), posX, posY);
 
   if (active){
     static uint16_t cursorHPos = posX;
 
-    //if((* inputCursor) != prevCursor ){ // Avoid recalculating every frame
+    //if(tmpCursor != prevCursor ){ // Avoid recalculating every frame
     if(true){ // Avoid recalculating every frame
       cursorHPos = posX;
-      const char lastChar = textBuffer[(* inputCursor)-1];
+      const char lastChar = textBuffer[tmpCursor-1];
 
       // trailing spaces are not added to width, change to 'i' to compensate
-      if (lastChar == ' ') textBuffer[(* inputCursor)-1] = 'i';
+      if (lastChar == ' ') textBuffer[tmpCursor-1] = 'i';
 
       // Calculate cursor position
       sm->tft->getTextBounds(
           (uint8_t *)textBuffer, 
-          (* inputCursor),
+          tmpCursor,
           posX, posY,
           &bx, &by, &bw, &bh
           );
       cursorHPos += bw;
-      textBuffer[(* inputCursor)-1] = lastChar;
-      prevCursor = (* inputCursor);
+      textBuffer[tmpCursor-1] = lastChar;
+      prevCursor = tmpCursor;
     }
 
     // Draw cursor line
@@ -333,8 +334,9 @@ bool drawTextInputField(
   }
 
   // reset vars if user exits/returns to home screen via home button
-  if (  sm->getPrevTouch() != sm->getCurrTouch()  &&
-        sm->getCurrTouch() == false          ){
+  if (  sm->touchEnabled()                        &&
+        sm->getPrevTouch() != sm->getCurrTouch()  &&
+        sm->getCurrTouch() == false               ){
     if (  TouchX <= 2*sm->homeButtonRadX              &&
           TouchX >= 0                                 &&
           TouchY <= DISP_HEIGHT-2*sm->homeButtonRadY  &&
