@@ -1,5 +1,5 @@
 #include "passwordManager.h"
-#include "textInputFieldClass.h"
+#include "textInputField.h"
 #include <t3nfonts.h>
 
 #define PM_STATE_OPENDB 0
@@ -50,10 +50,10 @@ FLASHMEM void doPassMan(stateMachine* sm){
       // Parse user input into text field
       doTextInputField(
           passwordField,
-          FIELD_LENGTH,
+          FIELD_LENGTH,           // buffer size, not strlen
           &passCursor,
           sm->getPressedKeys(),
-          sm->modifiers,
+          sm->getModifiers(),
           passActive,
           sm->getKeyPressHeld(),
           sm->getNumKeysPressed(),
@@ -87,10 +87,10 @@ FLASHMEM void doPassMan(stateMachine* sm){
       // Parse user input into text field
       doTextInputField(
           databaseField,
-          FIELD_LENGTH,
+          FIELD_LENGTH,           // buffer size, not strlen
           &dbfpCursor,
           sm->getPressedKeys(),
-          sm->modifiers,
+          sm->getModifiers(),
           dbfpActive,
           sm->getKeyPressHeld(),
           sm->getNumKeysPressed(),
@@ -125,10 +125,10 @@ FLASHMEM void doPassMan(stateMachine* sm){
       // Parse user input into text field
       doTextInputField(
           key_fileField,
-          FIELD_LENGTH,
+          FIELD_LENGTH,           // buffer size, not strlen
           &kyfpCursor,
           sm->getPressedKeys(),
-          sm->modifiers,
+          sm->getModifiers(),
           kyfpActive,
           sm->getKeyPressHeld(),
           sm->getNumKeysPressed(),

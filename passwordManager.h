@@ -16,6 +16,6 @@
 #include "smStruct.h"
 #include "buttons.h"
 #include "dialogue.h"
-#include "textInputFieldClass.h"
+#include "textInputField.h"
 
 FLASHMEM void doPassMan(stateMachine* sm);
