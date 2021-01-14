@@ -88,10 +88,11 @@ void doImageViewer(stateMachine* sm){
         );
   }
 
-  if (sm->getCurrTouch() && sm->getPrevTouch()) {
-    sm->tft->drawFastHLine(0, TouchY, (uint16_t)DISP_WIDTH, accentsColor);
-    sm->tft->drawFastVLine(TouchX, 0, (uint16_t)DISP_HEIGHT, accentsColor);
-  }
+  // Draw crosshair
+  //if (sm->getCurrTouch() && sm->getPrevTouch()) {
+    //sm->tft->drawFastHLine(0, TouchY, (uint16_t)DISP_WIDTH, accentsColor);
+    //sm->tft->drawFastVLine(TouchX, 0, (uint16_t)DISP_HEIGHT, accentsColor);
+  //}
 
   return;
 }
