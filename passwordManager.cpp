@@ -9,10 +9,10 @@
 
 #define FIELD_LENGTH 256
 
-char passwordField[FIELD_LENGTH] = {"The Quick Brown Fox Jumps Over The Lazy Dog."};
-char databaseField[FIELD_LENGTH] = {"some filepath idk"};
-char key_fileField[FIELD_LENGTH] = {"/path/to/file.key"};
-//     lol
+static char passwordField[FIELD_LENGTH] = {""};
+static char databaseField[FIELD_LENGTH] = {"/"};
+static char key_fileField[FIELD_LENGTH] = {"/"};
+//            lol
 
 // Determines whether the filepath leads to a proper database file
 bool databaseValid(const char* filePath, stateMachine* sm){
@@ -154,13 +154,14 @@ FLASHMEM void doPassMan(stateMachine* sm){
         kyfpActive = false;
       }
 
-      char        Title[20]   = "Select Database";
-      uint8_t     TitleLen    = 20;
+      memset(loremIpsum, '\0', FIELD_LENGTH);
+      strcpy(loremIpsum, "Select Database:");
       static bool selectingDB = false;
       static bool DBselected  = false;
+      offsetX = DISP_WIDTH-buttonRadX-1;
       // Draw file open button
       if (doIconButton(
-            DISP_WIDTH-buttonRadX-1, offsetY,
+            offsetX, offsetY,
             buttonRadX, buttonRadY, 0,
             AwesomeF000_20,
             (char)124,  // Crossed eye; obscure visibility
@@ -174,8 +175,8 @@ FLASHMEM void doPassMan(stateMachine* sm){
       }
       if (selectingDB)
         DBselected = doFileOpen(
-          (char*)Title, 
-          TitleLen, 
+          loremIpsum,
+          strlen(loremIpsum),
           databaseField,
           databaseValid,
           sm
@@ -193,8 +194,9 @@ FLASHMEM void doPassMan(stateMachine* sm){
       sm->tft->setTextDatum(TL_DATUM);
       sm->tft->setTextColor(accentsColor);
       memset(loremIpsum, '\0', FIELD_LENGTH);
-      strcpy(loremIpsum, "Key Filepath:");
-      sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
+      strcpy(loremIpsum, "Key Filepath (optional):");
+      //sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
+      sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, 2, offsetY);
       offsetY += 22;
 
       // Parse user input into text field
@@ -211,7 +213,8 @@ FLASHMEM void doPassMan(stateMachine* sm){
           );
       // Draw text field
       if (drawTextInputField(
-          offsetX, offsetY,
+          //offsetX, offsetY,
+          2, offsetY,
           DISP_WIDTH-64, 15,
           LiberationMono_11,
           TL_DATUM,
@@ -226,11 +229,13 @@ FLASHMEM void doPassMan(stateMachine* sm){
         kyfpActive = true;
       }
 
+      memset(loremIpsum, '\0', FIELD_LENGTH);
+      strcpy(loremIpsum, "Select Key File:");
       static bool selectingKF = false;
       static bool KFselected  = false;
       // Draw file open button
       if (doIconButton(
-            DISP_WIDTH-buttonRadX-1, offsetY,
+            offsetX, offsetY,
             buttonRadX, buttonRadY, 0,
             AwesomeF000_20,
             (char)124,  // Crossed eye; obscure visibility
@@ -239,13 +244,13 @@ FLASHMEM void doPassMan(stateMachine* sm){
             sm)){
         selectingKF = true;
         passActive  = false;
-        dbfpActive  = true;
-        kyfpActive  = false;
+        dbfpActive  = false;
+        kyfpActive  = true;
       }
       if (selectingKF)
         KFselected = doFileOpen(
-          (char*)Title, 
-          TitleLen, 
+          loremIpsum,
+          strlen(loremIpsum),
           key_fileField,
           key_fileValid,
           sm
@@ -253,6 +258,50 @@ FLASHMEM void doPassMan(stateMachine* sm){
       if (KFselected){
         selectingKF = false;
         KFselected  = false;
+      }
+
+
+      //
+      //  Draw Confirm button
+      //
+      offsetY += 48;
+      if (doIconButton(
+            offsetX, offsetY,
+            buttonRadX, buttonRadY+4, 0,
+            AwesomeF000_20,
+            (char)88,  // Confirm check mark 
+            primaryColor,
+            (strlen(passwordField)>7)?accentsColor:averageColor,
+            sm) &&
+          strlen(passwordField) > 7){
+      }
+
+      //
+      //  Draw Create New Database button
+      //
+      offsetX -= 2*(buttonRadX+1);
+      if (doIconButton(
+            offsetX, offsetY,
+            buttonRadX, buttonRadY+4, 0,
+            AwesomeF000_20,
+            (char)85,  // Plus sign 
+            primaryColor,
+            accentsColor,
+            sm)){
+      }
+
+      //
+      //  Draw Cancel button
+      //
+      offsetX -= 5*(buttonRadX+1);
+      if (doIconButton(
+            offsetX, offsetY,
+            buttonRadX, buttonRadY+4, 0,
+            AwesomeF000_20,
+            (char)87,  // X/cancel
+            primaryColor,
+            accentsColor,
+            sm)){
       }
       break;
 
