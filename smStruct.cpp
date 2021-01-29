@@ -73,6 +73,7 @@ void stateMachine::loadUserSettings(void){
 
 void stateMachine::updateSM(void){
 
+  if (!this->keyPassthrough){
   // Determine if key has been press long enough to repeat
   if (abs(millis() - this->keyPressTimer) >= this->keyHoldTime) 
     this->keyPressHeld = !(this->keyHoldCanceled);
@@ -81,6 +82,7 @@ void stateMachine::updateSM(void){
 
   // Clear released key
   this->releasedKey = 0;
+  }
   return;
 };
 
@@ -162,10 +164,6 @@ const uint16_t stateMachine::getDetailsColorInverted(void){
   return invert565color(this->detailsColor);
 };
 
-void stateMachine::updateInputKeys(void){
-  return;
-};
-
 void stateMachine::updateTouchStatus(void){
   this->prevTouch = this->currTouch;
   this->currTouch = this->ts->touched();
@@ -174,6 +172,14 @@ void stateMachine::updateTouchStatus(void){
     this->TouchX  = map(p.x, this->minXTS, this->maxXTS, 0, DISP_WIDTH);
     this->TouchY  = map(p.y, this->minYTS, this->maxYTS, DISP_HEIGHT, 0);
   }
+  return;
+};
+
+void stateMachine::resetTouch(void){
+  this->prevTouch = false;
+  this->currTouch = false;
+  this->TouchX    = 0;
+  this->TouchY    = 0;
   return;
 };
 
@@ -239,6 +245,10 @@ void stateMachine::enableKeyStrokePassthrough(void){
 };
 void stateMachine::disableKeyStrokePassthrough(void){
   this->keyPassthrough = false;
+  return;
+};
+
+void stateMachine::updateInputKeys(void){
   return;
 };
 

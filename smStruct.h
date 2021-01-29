@@ -68,8 +68,8 @@ class stateMachine {
     const uint16_t  getPrimaryColorInverted(void);
     const uint16_t  getDetailsColorInverted(void);
 
-    void            updateInputKeys(void);
     void            updateTouchStatus(void);
+    void            resetTouch(void);
     const bool      getCurrTouch(void);
     const bool      getPrevTouch(void);
     const uint16_t  getRawTouchX(void);
@@ -89,6 +89,7 @@ class stateMachine {
     void            enableKeyStrokePassthrough(void);
     void            disableKeyStrokePassthrough(void);
 
+    void            updateInputKeys(void);
     void            incNumKeysPressed(void);
     void            decNumKeysPressed(void);
     const uint8_t   getNumKeysPressed(void);
