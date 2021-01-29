@@ -425,6 +425,7 @@ FLASHMEM bool doFileOpen(
   if (selectionMade){
     sm->enableTouchInput(); 
     sm->enableDrawing();
+    //sm->resetTouch();
     dialogueEntered = false;
   }
   else 
