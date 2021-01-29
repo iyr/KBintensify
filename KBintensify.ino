@@ -192,8 +192,8 @@ void doCrosshairDemo(stateMachine* sm) {
 void OnRawPress(int key){
   const uint8_t modMask = getModMask(key, true);
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.press(HID2ArduKEY(key));
-    Keyboard.set_modifier(modMask); // true to enable modifier if pressed
+    Keyboard.press(HID2ArduKEY(key, false));
+    //Keyboard.set_modifier(modMask); // true to enable modifier if pressed
   }
   sm.incNumKeysPressed();
   sm.setModifiers(modMask);
@@ -211,8 +211,8 @@ void OnRawPress(int key){
 void OnRawRelease(int key){
   const uint8_t modMask = getModMask(key, false);
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.release(HID2ArduKEY(key));
-    Keyboard.set_modifier(modMask); // false to disable modifier if released
+    Keyboard.release(HID2ArduKEY(key, false));
+    //Keyboard.set_modifier(modMask); // false to disable modifier if released
   }
   sm.decNumKeysPressed();
   sm.setModifiers(modMask);
@@ -230,10 +230,11 @@ void OnHIDExtrasPress(uint32_t top, uint16_t key)
   if (sm.getKeyStrokePassthrough()) {
     Keyboard.set_modifier(modMask);
     Keyboard.press(key | 0xE400);
-  }
+  } else {
   sm.incNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setPressedKey(key);
+  }
   return;
 }
 
@@ -243,10 +244,11 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key)
   if (sm.getKeyStrokePassthrough()) {
     Keyboard.set_modifier(modMask);
     Keyboard.release(key | 0xE400);
-  }
+  } else {
   sm.decNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setReleasedKey(key);
+  }
   return;
 }
 
