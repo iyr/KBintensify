@@ -93,6 +93,7 @@ bool doIconTextButton(
           min(radX, radY)/3, 
           dtColor
           );
+      sm->resetTouch();
       //sm->tft->fillRoundRect(posX-28, posY-24, 28*2, 24*2, 8, dtColor);
       return true;
     }
@@ -162,6 +163,7 @@ bool doIconButton(
           min(radX, radY)/3, 
           dtColor
           );
+      sm->resetTouch();
       return true;
     }
   }
