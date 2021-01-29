@@ -267,6 +267,7 @@ bool drawTextInputField(
   const   uint16_t  accentsColor  = sm->getDetailsColor();
   const   uint16_t  primaryColor  = sm->getPrimaryColor();
   const   uint16_t  averageColor  = sm->getAverageColor();
+  const   uint16_t  primaryColorI = sm->getPrimaryColorInverted();
   const   uint16_t  TouchX        = sm->getTouchX();
   const   uint16_t  TouchY        = sm->getTouchY();
 
@@ -297,9 +298,11 @@ bool drawTextInputField(
       max(posX-4, 0),  posY-6, 
       boxW+8,    boxH+12,
       boxH/8,
-      accentsColor);
+      active?primaryColorI:accentsColor);
 
-  sm->tft->setTextColor(active?accentsColor:averageColor);
+  //sm->tft->setTextColor(active?accentsColor:averageColor);
+  //sm->tft->setTextColor(active?primaryColorI:accentsColor);
+  sm->tft->setTextColor(accentsColor);
   sm->tft->drawString1(textBuffer, min(strlen(textBuffer)+2, buffSize+1), posX, posY);
 
   if (active){
