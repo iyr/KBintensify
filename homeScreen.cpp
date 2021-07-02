@@ -57,13 +57,13 @@ void drawStatusBars(stateMachine* sm){
     sm->tft->setTextColor(accentsColor);
     sm->tft->setTextDatum(TR_DATUM);
     timeLen = buildTimeStr(timeStr, true, hour(), minute());//, second());
-    sm->tft->drawString1(timeStr, timeLen+2, 318, 2);
+    sm->tft->drawString(timeStr, timeLen+2, 318, 2);
 
     // Update Date
     memset(timeStr, '\0', 16);
     sm->tft->setTextDatum(TC_DATUM);
     timeLen = buildDateStr(timeStr, weekday(), month(), day());
-    sm->tft->drawString1(timeStr, timeLen+2, 160, 2);
+    sm->tft->drawString(timeStr, timeLen+2, 160, 2);
 
     // Draw/watch return home button
     char titleBuff[32] = {'\0'};
@@ -520,4 +520,3 @@ void doHomeScreen(stateMachine* sm){
   }
   return;
 }
-

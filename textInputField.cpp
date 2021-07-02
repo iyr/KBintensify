@@ -303,7 +303,7 @@ bool drawTextInputField(
   //sm->tft->setTextColor(active?accentsColor:averageColor);
   //sm->tft->setTextColor(active?primaryColorI:accentsColor);
   sm->tft->setTextColor(accentsColor);
-  sm->tft->drawString1(textBuffer, min(strlen(textBuffer)+2, buffSize+1), posX, posY);
+  sm->tft->drawString(textBuffer, min(strlen(textBuffer)+2, buffSize+1), posX, posY);
 
   if (active){
     static uint16_t cursorHPos = posX;

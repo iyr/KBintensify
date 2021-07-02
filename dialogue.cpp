@@ -102,15 +102,15 @@ FLASHMEM bool doFileOpen(
 
   sm->tft->setFont(AwesomeF000_12);
   iconGlyph[0] = (char)124; // Open Folder glyph
-  sm->tft->drawString1(iconGlyph, 3, offsetX, offsetY);
+  sm->tft->drawString(iconGlyph, 1, offsetX, offsetY);
 
   sm->tft->setFont(AwesomeF080_12);
   iconGlyph[0] = (char)90;  // Right-pointing arrow glyph
-  sm->tft->drawString1(iconGlyph, 3, offsetX+18, offsetY);
+  sm->tft->drawString(iconGlyph, 1, offsetX+18, offsetY);
 
   // Draw File dialogue text
   sm->tft->setFont(Arial_12);
-  sm->tft->drawString1(Title, (uint16_t)TitleLen+2, offsetX+26, offsetY);
+  sm->tft->drawString(Title, (uint16_t)TitleLen, offsetX+26, offsetY);
 
   if (numFiles < 0) { //  avoid unnecessary recomputation
     // Set directory to open
@@ -145,7 +145,7 @@ FLASHMEM bool doFileOpen(
     printBuff[ti+i] = num2chars[i];
   printBuff[ti+i-1] = ')';                    // Append right brace
   sm->tft->setTextDatum(TR_DATUM);
-  sm->tft->drawString1(printBuff, ti+i+3, DISP_WIDTH-offsetX, offsetY);
+  sm->tft->drawString(printBuff, ti+i+1, DISP_WIDTH-offsetX, offsetY);
 
   // Setup vars for printing directory entries
   offsetX = 32;
@@ -180,12 +180,12 @@ FLASHMEM bool doFileOpen(
     }
 
     // Draw entry
-    sm->tft->drawString1(iconGlyph, 3, offsetX, offsetY-2);
+    sm->tft->drawString(iconGlyph, 1, offsetX, offsetY-2);
     sm->tft->setFont(LiberationMono_11);
     if (i < numFiles)
-      sm->tft->drawString1(
+      sm->tft->drawString(
             fileListBuff[i], 
-            min(23, strlen(fileListBuff[i])+2),
+            min(23, strlen(fileListBuff[i])),
             offsetX+18, 
             offsetY
             );
@@ -211,17 +211,17 @@ FLASHMEM bool doFileOpen(
 
   sm->tft->setFont(AwesomeF100_8);
   iconGlyph[0] = (char)20; // Folder Icon Glyph
-  sm->tft->drawString1(
+  sm->tft->drawString(
       iconGlyph, 
-      3,
+      1,
       offsetX+4, 
       DISP_HEIGHT-11*offsetY/4+6
       );
 
   sm->tft->setFont(LiberationMono_8);
-  sm->tft->drawString1(
+  sm->tft->drawString(
       fileNameBuff,
-      (uint16_t)strlen(fileNameBuff)+2,
+      (uint16_t)strlen(fileNameBuff),
       offsetX+16, 
       DISP_HEIGHT-11*offsetY/4+8
       );

@@ -43,9 +43,9 @@ bool doIconTextButton(
       for (uint8_t j = lowerLim; j < i+(i==upperLim-1?1:0); j++){
         subBuff[j-lowerLim] = iconTitle[j];
       }
-      sm->tft->drawString1(
+      sm->tft->drawString(
             subBuff,
-            upperLim+2,
+            upperLim,
             posX, 
             posY+yShift
             );
@@ -59,7 +59,7 @@ bool doIconTextButton(
   sm->tft->setTextDatum(BC_DATUM);
   char tmp[3] = {'\0'};
   tmp[0] = symbol;
-  sm->tft->drawString1(tmp, 3, posX, Yadjust+(posY-radY/2));
+  sm->tft->drawString(tmp, 1, posX, Yadjust+(posY-radY/2));
 
   // Highlight Icon if cursor over, but touch not released
   if (  sm->touchEnabled()  &&
@@ -137,7 +137,7 @@ bool doIconButton(
   sm->tft->setTextDatum(BC_DATUM);
   char tmp[3] = {'\0'};
   tmp[0] = symbol;
-  sm->tft->drawString1(tmp, 3, posX, Yadjust+(posY-radY/2));
+  sm->tft->drawString(tmp, 1, posX, Yadjust+(posY-radY/2));
 
   // Draw Button border
   if (drawBorder)

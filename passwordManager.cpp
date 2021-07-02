@@ -67,7 +67,7 @@ FLASHMEM void doPassMan(stateMachine* sm){
       sm->tft->setTextDatum(TL_DATUM);
       sm->tft->setTextColor(accentsColor);
       strcpy(loremIpsum, "Database Password:");
-      sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
+      sm->tft->drawString(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
       offsetY += 22;
       // Parse user input into text field
       doTextInputField(
@@ -123,7 +123,7 @@ FLASHMEM void doPassMan(stateMachine* sm){
       sm->tft->setTextColor(accentsColor);
       memset(loremIpsum, '\0', FIELD_LENGTH);
       strcpy(loremIpsum, "Database Filepath:");
-      sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
+      sm->tft->drawString(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
       offsetY += 22;
       // Parse user input into text field
       doTextInputField(
@@ -196,7 +196,7 @@ FLASHMEM void doPassMan(stateMachine* sm){
       memset(loremIpsum, '\0', FIELD_LENGTH);
       strcpy(loremIpsum, "Key Filepath (optional):");
       //sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, offsetX, offsetY);
-      sm->tft->drawString1(loremIpsum, strlen(loremIpsum)+2, 2, offsetY);
+      sm->tft->drawString(loremIpsum, strlen(loremIpsum)+2, 2, offsetY);
       offsetY += 22;
 
       // Parse user input into text field
@@ -327,4 +327,3 @@ FLASHMEM void doPassMan(stateMachine* sm){
 
   return;
 };
-

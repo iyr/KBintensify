@@ -1,6 +1,6 @@
 /*
- * KB-Intensify Firmware
- */
+   KB-Intensify Firmware
+*/
 #include "USBHost_t36.h"            // USB Host Library
 #define TEENSY64
 #include <ILI9341_t3n.h>            // Display Library
@@ -71,7 +71,7 @@ stateMachine sm = stateMachine();
 XPT2046_Touchscreen gts  = XPT2046_Touchscreen(CS_PIN);
 ILI9341_t3n gtft         = ILI9341_t3n(TFT_CS, TFT_DC, TFT_RST);
 EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
-EXTMEM uint16_t wallpaper[DISP_WIDTH*DISP_HEIGHT];
+EXTMEM uint16_t wallpaper[DISP_WIDTH * DISP_HEIGHT];
 EXTMEM char** fileListBuff;
 
 //=============================================================================
@@ -91,7 +91,7 @@ bool driver_active[CNT_DEVICES]       = {false, false, false};
 // functions are called by index
 void (* SCREENS[4]) (stateMachine*);
 
-void doQuack(stateMachine* sm){
+void doQuack(stateMachine* sm) {
   doHomeScreen(sm);
   doCrosshairDemo(sm);
 }
@@ -99,7 +99,7 @@ void doQuack(stateMachine* sm){
 void setup() {
   Serial.begin(115200);
 
-  if (!gsd.begin(SD_CONFIG)) 
+  if (!gsd.begin(SD_CONFIG))
     Serial.println("SD card initialization failed");
 
   // Initialize State Machine variables
@@ -107,7 +107,7 @@ void setup() {
   sm.tft  = &gtft;
   sm.setTS(&gts);
   sm.setScreen(SCREEN_CALIBRATION);
-  
+
   //sm.currentScreen = SCREEN_CALIBRATION;
   //sm.bgImage = wallpaper;
 
@@ -125,10 +125,10 @@ void setup() {
   SCREENS[SCREEN_IMAGEVIEWER] = doImageViewer;
   SCREENS[SCREEN_PASSWORDMAN] = doPassMan;
   //SCREENS[SCREEN_CROSSHAIRDEMO] = doCrosshairDemo;
-   
+
   // Set RTC, run saftey check
   setSyncProvider(getTeensy3Time);
-  if (timeStatus()!= timeSet) {
+  if (timeStatus() != timeSet) {
     Serial.println("Unable to sync with the RTC");
   } else {
     Serial.println("RTC has set the system time");
@@ -136,12 +136,12 @@ void setup() {
 
   // Initialize Display and Touch Sensor
   sm.initDevices();
-  if (sm.sd->exists("/userSettings.cfg")){
+  if (sm.sd->exists("/userSettings.cfg")) {
     sm.loadUserSettings("/userSettings.cfg");
     sm.setScreen(SCREEN_HOME);
   }
 
-  // 
+  //
   sm.tft->fillScreen(ILI9341_BLUE);
   sm.tft->updateScreen();
   sm.tft->fillScreen(ILI9341_PINK);
@@ -154,9 +154,9 @@ void setup() {
   sm.tft->updateScreen();
   while (!Serial && (millis() <= 1000));
 
-  fileListBuff = (char **)malloc(MAX_FILELIST_LENGTH*sizeof(char *));
-  for (uint32_t i = 0; i < MAX_FILELIST_LENGTH; i++){
-    fileListBuff[i] = (char *)malloc(MAX_FILENAME_LENGTH*sizeof(char));
+  fileListBuff = (char **)malloc(MAX_FILELIST_LENGTH * sizeof(char *));
+  for (uint32_t i = 0; i < MAX_FILELIST_LENGTH; i++) {
+    fileListBuff[i] = (char *)malloc(MAX_FILENAME_LENGTH * sizeof(char));
     memset(fileListBuff[i], '\0', MAX_FILENAME_LENGTH);
   }
 }
@@ -189,7 +189,7 @@ void doCrosshairDemo(stateMachine* sm) {
   return;
 }
 
-void OnRawPress(int key){
+void OnRawPress(int key) {
   const uint8_t modMask = getModMask(key, true);
   if (sm.getKeyStrokePassthrough()) {
     Keyboard.press(HID2ArduKEY(key, false));
@@ -200,7 +200,10 @@ void OnRawPress(int key){
   sm.setPressedKey(key);
 
   // Use Escape to "unstick" buggersome key inputs
-  if (HID2ArduKEY(key) == KEY_ESC){ Keyboard.releaseAll(); Keyboard.set_modifier(0); }
+  if (HID2ArduKEY(key) == KEY_ESC) {
+    Keyboard.releaseAll();
+    Keyboard.set_modifier(0);
+  }
 
   //Serial.print("HID PRS: ");
   //Serial.println(key);
@@ -208,7 +211,7 @@ void OnRawPress(int key){
   return;
 }
 
-void OnRawRelease(int key){
+void OnRawRelease(int key) {
   const uint8_t modMask = getModMask(key, false);
   if (sm.getKeyStrokePassthrough()) {
     Keyboard.release(HID2ArduKEY(key, false));
@@ -220,7 +223,7 @@ void OnRawRelease(int key){
 
   //Serial.print("HID REL: ");
   //Serial.println(key);
-  
+
   return;
 }
 
@@ -231,9 +234,9 @@ void OnHIDExtrasPress(uint32_t top, uint16_t key)
     Keyboard.set_modifier(modMask);
     Keyboard.press(key | 0xE400);
   } else {
-  sm.incNumKeysPressed();
-  sm.setModifiers(modMask);
-  sm.setPressedKey(key);
+    sm.incNumKeysPressed();
+    sm.setModifiers(modMask);
+    sm.setPressedKey(key);
   }
   return;
 }
@@ -245,10 +248,9 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key)
     Keyboard.set_modifier(modMask);
     Keyboard.release(key | 0xE400);
   } else {
-  sm.decNumKeysPressed();
-  sm.setModifiers(modMask);
-  sm.setReleasedKey(key);
+    sm.decNumKeysPressed();
+    sm.setModifiers(modMask);
+    sm.setReleasedKey(key);
   }
   return;
 }
-
