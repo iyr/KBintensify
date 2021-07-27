@@ -18,7 +18,19 @@ uint16_t HID2ArduKEY(const int hidkey){
     return hidascii_lc[hidkey];
   }
 }
+uint16_t Tnsy2ArduKEY(const int tnsyKey){
 
+  // Return the input key if outside
+  // look-up table length
+  //if (tnsyKey >= NUM_HID_ENTRIES) return tnsyKey;
+
+  // Determine which look-up table to use, return
+  if (SHIFTED) {
+    return ardascii_uc[tnsyKey];
+  } else {
+    return ardascii_lc[tnsyKey];
+  }
+}
 // Use lookup tables to convert USB HID key codes
 // to what Arduino/Teensyduino uses.
 uint16_t HID2ArduKEY(const int hidkey, const bool shifted){
