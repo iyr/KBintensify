@@ -49,9 +49,9 @@ void drawStatusBars(stateMachine* sm){
     sm->tft->setFont(Arial_12);
 
     // Placeholder buffer
-    char    timeStr[16];
+    char    timeStr[16] = {'\0'};
     uint8_t timeLen = 0;
-    memset(timeStr, '\0', 16);
+    //memset(timeStr, '\0', 16);
 
     // Update Clock
     sm->tft->setTextColor(accentsColor);
@@ -65,7 +65,7 @@ void drawStatusBars(stateMachine* sm){
     timeLen = buildDateStr(timeStr, weekday(), month(), day());
     sm->tft->drawString(timeStr, timeLen+2, 160, 2);
 
-    // Draw/watch return home button
+    // Draw+watch return home button
     char titleBuff[32] = {'\0'};
     strcpy(titleBuff, " Home");
     if (sm->getScreen() != 1 && sm->getScreen() != 0)
@@ -81,6 +81,7 @@ void drawStatusBars(stateMachine* sm){
             )){
         sm->setScreen(1);
         sm->enableKeyStrokePassthrough();
+				sm->resetTouch();
       }
 
     uint16_t bx=8,
@@ -98,14 +99,18 @@ void drawStatusBars(stateMachine* sm){
     sm->tft->print((char)28); // Keyboard Symbol
 
     // Use color to indicate key-held status
-    sm->tft->setTextColor(!sm->getKeyPressHeld()?accentsColor:primaryColorI);
+    sm->tft->setTextColor(sm->getKeyPressHeld()?primaryColorI:accentsColor);
     bx += 22; by += 3;
     sm->tft->setCursor(bx, by);
     sm->tft->setFont(AwesomeF000_10);
     sm->tft->print((char)84); // Right Arrow
 
     // Use color to indicate touch sensor input status
-    sm->tft->setTextColor(!sm->getCurrTouch()?accentsColor:primaryColorI);
+    //sm->tft->setTextColor(!sm->getCurrTouch()?accentsColor:primaryColorI);
+		if (sm->getCurrTouch()) 
+    	sm->tft->setTextColor(sm->getTouchPressHeld()?accentsColorI:primaryColorI);
+		else
+			sm->tft->setTextColor(accentsColor);
     bx += 12; by -= 0;
     sm->tft->setCursor(bx, by);
     sm->tft->setFont(Michroma_10);
@@ -115,8 +120,8 @@ void drawStatusBars(stateMachine* sm){
     
     // Use Color+Symbol to indicate keystroke passthrough status
     if (passThruTru) {
-      sm->tft->setTextColor(accentsColor);
       bx += 36; by -= 0;
+			sm->tft->setTextColor(accentsColor);
       sm->tft->setCursor(bx, by);
       sm->tft->setFont(AwesomeF000_10);
       sm->tft->print((char)84); // Right Arrow
@@ -454,6 +459,8 @@ void doHomeScreen(stateMachine* sm){
            accentsColor,
            sm
            )){
+		sm->setScreen(4);
+		//sm->scanForOutputs();
   }
 
   posX+=(2*buttonRadX)+4;
