@@ -1,9 +1,13 @@
 #include "smStruct.h"
 
+#define SETTINGS_FILESIZE_MAX 4096
+#define DEBUG
+
 stateMachine::stateMachine(void){
   memset(this->pressedKeys, 0, PRESSED_KEYS_BUFF_SIZE*sizeof(short));
   return;
 };
+
 stateMachine::~stateMachine(void){
   return;
 };
@@ -19,15 +23,18 @@ void stateMachine::saveUserSettings(void){
   }
 
   // Allocate a temporary JsonDocument
-  // Don't forget to change the capacity to match your requirements.
-  // Use arduinojson.org/assistant to compute the capacity.
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<SETTINGS_FILESIZE_MAX> doc;
 
-  // Set the values in the document
+  // Set touchscreen calibration variables
   doc["minXTS"] = this->minXTS;
   doc["minYTS"] = this->minYTS;
   doc["maxXTS"] = this->maxXTS;
   doc["maxYTS"] = this->maxYTS;
+
+	// Set selected outputs (could be more memory/space efficient)
+	for (uint8_t i = 0; i < MAX_OUTPUTS; i++){
+		doc["outputs"][i] = this->outputs[i];
+	}
 
   // Serialize JSON to file
   if (serializeJson(doc, configFile) == 0) {
@@ -42,12 +49,9 @@ void stateMachine::saveUserSettings(void){
 void stateMachine::loadUserSettings(const char* filepath){
   // Open file for reading
   File file = this->sd->open(filepath);
-  //File file = this->sd->open("/userSettings.cfg");
 
   // Allocate a temporary JsonDocument
-  // Don't forget to change the capacity to match your requirements.
-  // Use arduinojson.org/v6/assistant to compute the capacity.
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<SETTINGS_FILESIZE_MAX> doc;
 
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
@@ -62,6 +66,11 @@ void stateMachine::loadUserSettings(const char* filepath){
   this->maxXTS = doc["maxXTS"];
   this->maxYTS = doc["maxYTS"];
 
+	// Restore selected outputs (could be more memory/space efficient)
+	for (uint8_t i = 0; i < MAX_OUTPUTS; i++){
+		this->outputs[i] = doc["outputs"][i];
+	}
+
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
   return;
@@ -73,15 +82,19 @@ void stateMachine::loadUserSettings(void){
 
 void stateMachine::updateSM(void){
 
-  if (!this->keyPassthrough){
-  // Determine if key has been press long enough to repeat
-  if (abs(millis() - this->keyPressTimer) >= this->keyHoldTime) 
-    this->keyPressHeld = !(this->keyHoldCanceled);
+  // Determine if touch sensor has been pressed long enough for alternate input
+  if (this->currTouch && abs(millis() - this->touchPressTimer) >= this->touchHoldTime){
+    this->touchPressHeld = !(this->touchHoldCanceled);
+	}
+  if (this->keyPassthrough){
+  	// Determine if key has been pressed long enough to repeat
+  	if (abs(millis() - this->keyPressTimer) >= this->keyHoldTime) 
+    	this->keyPressHeld = !(this->keyHoldCanceled);
 
-  if (this->numKeysPressed == 0){ this->keyPressHeld = false; this->keyHoldCanceled = false;}
+  	if (this->numKeysPressed == 0){ this->keyPressHeld = false; this->keyHoldCanceled = false;}
 
-  // Clear released key
-  this->releasedKey = 0;
+  	// Clear released key
+  	this->releasedKey = 0;
   }
   return;
 };
@@ -97,8 +110,119 @@ void stateMachine::initDevices(void){
   this->tft->setRotation(1);
   this->ts->begin();
   this->ts->setRotation(1);
+	
+	// output[0] is the default direct output of the Teensy 4.1
+	// all other outputs are i2c devices
+	this->outputs[0] = 224;
   return;
 };
+
+
+// Scans i2c bus for valid outputs while also getting each output's capabilities
+void stateMachine::scanForOutputs(void){
+	this->numOutputs = 1;	// There is always at least one output
+	byte error;						// Get i2c return code
+#ifdef DEBUG
+	Serial.println(F("Now Scanning i2c bus for output devices"));
+#endif
+	this->outputs[0] = 224;
+	for (uint8_t address = 1; address < MAX_OUTPUTS; address++){
+		Wire.beginTransmission(address);
+		error = Wire.endTransmission();
+
+		// Device found, check for output capabilities
+		if (error == 0){
+#ifdef DEBUG
+			Serial.print(F("Device found on address: ")); 
+			Serial.print(address);
+			Serial.println(F(", Identifying..."));
+#endif
+			uint8_t capBuff[9] = {0};
+			Wire.requestFrom(address, 8);
+			for (uint8_t i = 0; i < 8; i++){
+				capBuff[i] = Wire.read();
+#ifdef DEBUG
+				if (i < 7) Serial.print((char)capBuff[i]);
+				else Serial.print(capBuff[i]);
+#endif
+				delay(1);
+			}
+			Serial.println();
+			uint8_t tmp = capBuff[7];
+			capBuff[7] = 'N';
+			capBuff[8] = '\0';
+			if (strcmp(capBuff, "Output:N") == 0){
+				this->numOutputs++;
+				this->outputs[address] = tmp;
+#ifdef DEBUG
+				Serial.println(F("Output valid!"));
+				if (tmp & 16) Serial.println("Output supports Bluetooth");
+				if (tmp & 32) Serial.println("Output supports media keys");
+#endif
+			} else {
+#ifdef DEBUG
+				for (uint8_t i = 0; i < 8; i++)
+					Serial.print((char)capBuff[i]);
+				Serial.println(F(" Unknown Device"));
+#endif
+			}
+		}
+		delay(1);
+	}
+	return;
+}
+
+// Send keystroke to output device specified at address
+void stateMachine::sendKeyStroke(
+	const uint8_t		deviceAddress,	// device i2c address to send the keystroke
+	const bool 			isPressed, 			// differentiate press / release
+	const uint8_t 	modMask, 				// modifier keys mask
+	const uint16_t	key							// the actual key code (typ 1 byte for ascii, 2 bytes for hid extras)
+	) {
+	const uint16_t arduKey = Tnsy2ArduKEY(key);
+	// Create array of bytes to send keystrokes over i2c to auxiliary output devices (eg, usb, bluetooth)
+	uint8_t keyStrokeBytes[5];
+	keyStrokeBytes[0] = isPressed;								// 1: key press, 0: key release
+	keyStrokeBytes[1] = modMask;									// second byte is the modifier mask
+	keyStrokeBytes[2] = uint8_t((key >> 8) & -1);	// Parse key code into two bytes
+	keyStrokeBytes[3] = uint8_t(key & -1);				// Parse key code into two bytes
+	keyStrokeBytes[4] = uint8_t(arduKey);
+
+	Wire.beginTransmission(deviceAddress);
+	Wire.write(keyStrokeBytes, 5);
+	Wire.endTransmission();
+	return;
+}
+
+// Send keystroke to all receiving output devices
+void stateMachine::passKeyToOutputs(
+	const bool 			isPressed, 			// differentiate press / release
+	const uint8_t 	modMask, 				// modifier keys mask
+	const uint16_t	key							// the actual key code (typ 1 byte for ascii, 2 bytes for hid extras)
+	) {
+#ifdef DEBUG
+	Serial.print(F("HID code (Host, Remap): "));
+	Serial.print(key);
+	Serial.print(F(", "));
+	Serial.println(Tnsy2ArduKEY(key));
+	Serial.println(F("Passing keystroke to outputs..."));
+#endif
+	for (	uint8_t address = 1; address < MAX_OUTPUTS; address++) {
+		if ((this->outputs[address] & 128) && (this->outputs[address] & 64)){
+			this->sendKeyStroke(address, isPressed, modMask, key);
+#ifdef DEBUG
+			if (isPressed){
+				Serial.print(F("Sending Key Press to address: " ));
+			} else {
+				Serial.print(F("Sending Key Release to address: " ));
+			}
+			Serial.println(address);
+#endif
+			//delay(1);
+		}
+	}
+	return;
+}
 
 void stateMachine::setCalibVars(
     const uint16_t minXts, 
@@ -114,7 +238,7 @@ void stateMachine::setCalibVars(
 };
 
 void stateMachine::setScreen(const uint8_t screen) {
-  currentScreen = constrain(screen, 0, 3);
+  currentScreen = constrain(screen, 0, 4);
   return;
 };
 const uint8_t stateMachine::getScreen(void){
@@ -168,6 +292,37 @@ void stateMachine::updateTouchStatus(void){
   this->prevTouch = this->currTouch;
   this->currTouch = this->ts->touched();
   TS_Point p      = this->ts->getPoint();
+
+	// Record calibrated XY coordinates the first frame the touch screen is pressed
+	if (this->currTouch && !this->prevTouch) {	// First frame screen is touched
+  	this->touchPressHeld  	= false;
+		this->touchHoldCanceled = false;
+  	this->touchPressTimer		= millis();
+    this->TouchX0 = map(p.x, this->minXTS, this->maxXTS, 0, DISP_WIDTH	);
+    this->TouchY0 = map(p.y, this->minYTS, this->maxYTS, DISP_HEIGHT, 0	);
+    this->TouchX  = this->TouchX0;
+    this->TouchY  = this->TouchY0;
+	} 
+
+	// Cancel touch hold if cursor leaves small circle where touch input was first registered
+	if (!this->currTouch || 
+			(float)this->touchHoldRadius <= hypot(
+				float(this->TouchX0 - this->TouchX), 
+				float(this->TouchY0 - this->TouchY)) &&
+			!this->touchPressHeld
+			){
+		this->TouchX0 = -1;
+		this->TouchY0 = -1;
+		this->touchHoldCanceled = true;
+		this->touchPressHeld = false;
+	}
+
+	if (this->touchHoldCanceled) this->touchPressTimer = millis();
+
+	if (!this->currTouch && this-prevTouch) {	// Frist frame touch is released from screen
+		this->TouchX0 = -1;
+		this->TouchY0 = -1;
+	}
   if (this->currentScreen > 0){
     this->TouchX  = map(p.x, this->minXTS, this->maxXTS, 0, DISP_WIDTH);
     this->TouchY  = map(p.y, this->minYTS, this->maxYTS, DISP_HEIGHT, 0);
@@ -176,10 +331,12 @@ void stateMachine::updateTouchStatus(void){
 };
 
 void stateMachine::resetTouch(void){
-  this->prevTouch = false;
-  this->currTouch = false;
-  this->TouchX    = 0;
-  this->TouchY    = 0;
+	this->touchHoldCanceled	= false;
+	this->touchPressHeld 		= false;
+  this->prevTouch 				= false;
+  this->currTouch 				= false;
+  this->TouchX    				= 0;
+  this->TouchY    				= 0;
   return;
 };
 
@@ -204,6 +361,10 @@ const uint16_t stateMachine::getTouchX(void){
 
 const uint16_t stateMachine::getTouchY(void){
   return this->TouchY;
+};
+
+const bool stateMachine::getTouchPressHeld(void){
+  return this->touchPressHeld;
 };
 
 const bool stateMachine::touchEnabled(void){
@@ -236,6 +397,25 @@ void stateMachine::enableDrawing(void){
   return;
 };
 
+// Returns number of available outputs
+const uint8_t stateMachine::getNumOutputs(void){
+	return this->numOutputs;
+}
+
+// Enables all available outputs
+void stateMachine::enableAllOutputs(void){
+	for (uint8_t i = 0; i < MAX_OUTPUTS-1; i++)
+		if (this->outputs[i] & 128) this->outputs[i] |= 64;
+	return;
+}
+
+// Disables all available outputs
+void stateMachine::disableAllOutputs(void){
+	for (uint8_t i = 0; i < MAX_OUTPUTS-1; i++)
+		if (this->outputs[i] & 128) this->outputs[i] &= 191;
+	return;
+}
+
 const bool stateMachine::getKeyStrokePassthrough(void){
   return this->keyPassthrough;
 };
@@ -247,6 +427,63 @@ void stateMachine::disableKeyStrokePassthrough(void){
   this->keyPassthrough = false;
   return;
 };
+
+// Enables output at address
+void stateMachine::enableOutput(const uint8_t address){
+	if (address > 127) return;
+	else {
+#ifdef DEBUG
+		Serial.print("Enabling key output on address ");
+		Serial.println(address);
+		Serial.println(this->outputs[address], BIN);
+#endif
+		this->outputs[address] = this->outputs[address] | 64;
+	}
+	return;
+}
+
+// Disables output at address
+void stateMachine::disableOutput(const uint8_t address){
+	if (address > 127) return;
+	else {
+#ifdef DEBUG
+		Serial.print("Disabling key output on address ");
+		Serial.println(address);
+		Serial.println(this->outputs[address], BIN);
+#endif
+		this->outputs[address] = this->outputs[address] & 191;
+	}
+	return;
+}
+
+// Returns true if output as address is enabled for output
+const bool stateMachine::isOutputEnabled(const uint8_t address){
+	if (address > 127) return false;
+	else {
+		if (this->outputs[address] & 64) return true;
+		else return false;
+	}
+}
+
+const uint8_t stateMachine::nextOutputAddress(const uint8_t address){
+	if (address > 127) return 0;
+	uint8_t nextAddress = address + 1;
+	while(!((this->outputs[nextAddress] | 127) & 128)){
+		nextAddress++;
+		if (nextAddress > 127) nextAddress = 0;
+	}
+	return nextAddress;
+}
+
+const uint8_t stateMachine::prevOutputAddress(const uint8_t address){
+	if (address > 127) return 0;
+	uint8_t prevAddress = address - 1;
+	while(!((this->outputs[prevAddress] | 127) & 128)){
+		prevAddress--;
+		if (prevAddress > 127) prevAddress = 127;
+	}
+	return prevAddress;
+}
 
 void stateMachine::updateInputKeys(void){
   return;
