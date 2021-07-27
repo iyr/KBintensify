@@ -62,8 +62,9 @@ bool doIconTextButton(
   sm->tft->drawString(tmp, 1, posX, Yadjust+(posY-radY/2));
 
   // Highlight Icon if cursor over, but touch not released
-  if (  sm->touchEnabled()  &&
-        sm->getCurrTouch()  ){
+  if (  sm->touchEnabled()  			&&
+				!sm->getTouchPressHeld()	&&
+        sm->getCurrTouch()  			){
     if (  TouchX <= posX+radX &&
           TouchX >= posX-radX &&
           TouchY <= posY+radY &&
@@ -80,6 +81,7 @@ bool doIconTextButton(
 
   // Touch released
   if (  sm->touchEnabled()                        &&
+				!sm->getTouchPressHeld()									&&
         sm->getPrevTouch() != sm->getCurrTouch()  &&
         sm->getCurrTouch() == false          ){
     if (  TouchX <= posX+radX &&
@@ -93,7 +95,7 @@ bool doIconTextButton(
           min(radX, radY)/3, 
           dtColor
           );
-      sm->resetTouch();
+      //sm->resetTouch();
       //sm->tft->fillRoundRect(posX-28, posY-24, 28*2, 24*2, 8, dtColor);
       return true;
     }
@@ -150,6 +152,7 @@ bool doIconButton(
 
   // Touch released
   if (  sm->touchEnabled()                        &&
+				!sm->getTouchPressHeld()									&&
         sm->getPrevTouch() != sm->getCurrTouch()  &&
         sm->getCurrTouch() == false               ){
     if (  TouchX <= posX+radX &&
@@ -163,7 +166,7 @@ bool doIconButton(
           min(radX, radY)/3, 
           dtColor
           );
-      sm->resetTouch();
+      //sm->resetTouch();
       return true;
     }
   }
