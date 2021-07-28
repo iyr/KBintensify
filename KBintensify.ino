@@ -11,7 +11,8 @@
 #include <SdFatConfig.h>
 #include <sdios.h>
 #include <TimeLib.h>                // Real-time clock Library
-#include "KButils.h"                // KB-Intensify utilities
+#include <Wire.h>                   // Communicate with other chips/mcus
+#include "KButils.h"                // Custom KB-Intensify utilities
 
 #define CS_PIN  8
 #define TFT_DC  9
@@ -89,7 +90,7 @@ bool driver_active[CNT_DEVICES]       = {false, false, false};
 
 // Array of function pointers, passing only the statemachine
 // functions are called by index
-void (* SCREENS[4]) (stateMachine*);
+void (* SCREENS[5]) (stateMachine*);
 
 void doQuack(stateMachine* sm) {
   doHomeScreen(sm);
@@ -98,6 +99,7 @@ void doQuack(stateMachine* sm) {
 
 void setup() {
   Serial.begin(115200);
+  while(!Serial);
 
   if (!gsd.begin(SD_CONFIG))
     Serial.println("SD card initialization failed");
@@ -107,6 +109,10 @@ void setup() {
   sm.tft  = &gtft;
   sm.setTS(&gts);
   sm.setScreen(SCREEN_CALIBRATION);
+
+  // Initialize i2c multi-output bus
+  Wire.begin();
+  //sm.scanForOutputs();
 
   //sm.currentScreen = SCREEN_CALIBRATION;
   //sm.bgImage = wallpaper;
@@ -124,6 +130,7 @@ void setup() {
   //SCREENS[SCREEN_HOME]        = doQuack;
   SCREENS[SCREEN_IMAGEVIEWER] = doImageViewer;
   SCREENS[SCREEN_PASSWORDMAN] = doPassMan;
+  SCREENS[SCREEN_OUTPUTMUX]   = doOutputMultiplexor;
   //SCREENS[SCREEN_CROSSHAIRDEMO] = doCrosshairDemo;
 
   // Set RTC, run saftey check
@@ -159,16 +166,22 @@ void setup() {
     fileListBuff[i] = (char *)malloc(MAX_FILENAME_LENGTH * sizeof(char));
     memset(fileListBuff[i], '\0', MAX_FILENAME_LENGTH);
   }
+
+  sm.scanForOutputs();
+  sm.resetTouch();
+  sm.updateTouchStatus();
 }
 
 void loop() {
   //sm.pressedKey = 0;
   //sm.updateInputKeys();
+#ifdef DEBUG
   if (sm.getCurrTouch() && sm.getScreen() != 0 ) {
     Serial.print(sm.getTouchX());
     Serial.print(F(" "));
     Serial.println(sm.getTouchY());
   }
+#endif
   if (sm.getNumKeysPressed() == 0) sm.clearPressedKeys();
   (* SCREENS[sm.getScreen()])(&sm);
   sm.updateTouchStatus();
@@ -192,9 +205,10 @@ void doCrosshairDemo(stateMachine* sm) {
 void OnRawPress(int key) {
   const uint8_t modMask = getModMask(key, true);
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.press(HID2ArduKEY(key, false));
-    //Keyboard.set_modifier(modMask); // true to enable modifier if pressed
+    if (sm.isOutputEnabled(0))  Keyboard.press(HID2ArduKEY(key, false));
+    sm.passKeyToOutputs(1, modMask, key);
   }
+  
   sm.incNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setPressedKey(key);
@@ -205,8 +219,10 @@ void OnRawPress(int key) {
     Keyboard.set_modifier(0);
   }
 
-  //Serial.print("HID PRS: ");
-  //Serial.println(key);
+#ifdef DEBUG
+  Serial.print("HID PRS: ");
+  Serial.println(key);
+#endif
 
   return;
 }
@@ -214,15 +230,18 @@ void OnRawPress(int key) {
 void OnRawRelease(int key) {
   const uint8_t modMask = getModMask(key, false);
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.release(HID2ArduKEY(key, false));
+    if (sm.isOutputEnabled(0))  Keyboard.release(HID2ArduKEY(key, false));
     //Keyboard.set_modifier(modMask); // false to disable modifier if released
+    sm.passKeyToOutputs(0, modMask, key);
   }
   sm.decNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setReleasedKey(key);
 
-  //Serial.print("HID REL: ");
-  //Serial.println(key);
+#ifdef DEBUG
+  Serial.print("HID REL: ");
+  Serial.println(key);
+#endif
 
   return;
 }
@@ -231,13 +250,16 @@ void OnHIDExtrasPress(uint32_t top, uint16_t key)
 {
   const uint8_t modMask = getModMask(key, true);
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.set_modifier(modMask);
-    Keyboard.press(key | 0xE400);
-  } else {
-    sm.incNumKeysPressed();
-    sm.setModifiers(modMask);
-    sm.setPressedKey(key);
+    if (sm.isOutputEnabled(0)){ 
+      Keyboard.set_modifier(modMask);
+      Keyboard.press(key | 0xE400);
+    }
+    sm.passKeyToOutputs(1, modMask, key);
   }
+  sm.incNumKeysPressed();
+  sm.setModifiers(modMask);
+  sm.setPressedKey(key);
+
   return;
 }
 
@@ -245,12 +267,16 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key)
 {
   const uint8_t modMask = getModMask(key, false);
   if (sm.getKeyStrokePassthrough()) {
-    Keyboard.set_modifier(modMask);
-    Keyboard.release(key | 0xE400);
-  } else {
-    sm.decNumKeysPressed();
-    sm.setModifiers(modMask);
-    sm.setReleasedKey(key);
+    if (sm.isOutputEnabled(0)){ 
+      Keyboard.set_modifier(modMask);
+      Keyboard.release(key | 0xE400);
+    }
+    sm.passKeyToOutputs(0, modMask, key);
   }
+  sm.decNumKeysPressed();
+  sm.setModifiers(modMask);
+  sm.setReleasedKey(key);
+
   return;
 }
+
