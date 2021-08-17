@@ -3,6 +3,7 @@
 */
 #include "USBHost_t36.h"            // USB Host Library
 #define TEENSY64
+#include <Adafruit_VCNL4040.h>			// Proximitiy/Ambient Light Sensor library
 #include <ILI9341_t3n.h>            // Display Library
 #include <ili9341_t3n_font_Arial.h> // Font
 #include <XPT2046_Touchscreen.h>    // Touchscreen sensor Library
@@ -14,6 +15,7 @@
 #include <Wire.h>                   // Communicate with other chips/mcus
 #include "KButils.h"                // Custom KB-Intensify utilities
 
+#define BL_PIN  5
 #define CS_PIN  8
 #define TFT_DC  9
 #define TFT_CS  10
@@ -68,9 +70,11 @@ ArduinoOutStream cout(Serial);
 #define error(s) gsd.errorHalt(&Serial, F(s))
 //------------------------------------------------------------------------------
 //stateMachine sm;
-stateMachine sm = stateMachine();
-XPT2046_Touchscreen gts  = XPT2046_Touchscreen(CS_PIN);
-ILI9341_t3n gtft         = ILI9341_t3n(TFT_CS, TFT_DC, TFT_RST);
+stateMachine sm 					= stateMachine();
+XPT2046_Touchscreen gts  	= XPT2046_Touchscreen(CS_PIN);
+ILI9341_t3n gtft         	= ILI9341_t3n(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_VCNL4040 proxlux	= Adafruit_VCNL4040();
+
 EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
 EXTMEM uint16_t wallpaper[DISP_WIDTH * DISP_HEIGHT];
 EXTMEM char** fileListBuff;
@@ -99,7 +103,7 @@ void doQuack(stateMachine* sm) {
 
 void setup() {
   Serial.begin(115200);
-  while(!Serial);
+  //while(!Serial);
 
   if (!gsd.begin(SD_CONFIG))
     Serial.println("SD card initialization failed");
@@ -107,12 +111,32 @@ void setup() {
   // Initialize State Machine variables
   sm.sd   = &gsd;
   sm.tft  = &gtft;
+	sm.proxlux = &proxlux;
   sm.setTS(&gts);
+	sm.setKC(&keyboard1);
   sm.setScreen(SCREEN_CALIBRATION);
+
+	// Initialize i3c breakout module bus
+	Wire1.begin();
 
   // Initialize i2c multi-output bus
   Wire.begin();
-  //sm.scanForOutputs();
+
+	// Initiliaze VCNL4040 proximity light sensor
+	if (!sm.proxlux->begin(96, &Wire1)) {
+    Serial.println("Couldn't find VCNL4040 chip");
+    while (1);
+  }
+
+	// Initialize Display backlight
+	pinMode(BL_PIN, OUTPUT);
+  for (uint8_t i = 0; i < 255; i++) {
+		analogWrite(BL_PIN, i);
+		delay(5);
+	}
+	analogWriteFrequency(BL_PIN, 585937);
+
+	sm.setBLpin(BL_PIN);
 
   //sm.currentScreen = SCREEN_CALIBRATION;
   //sm.bgImage = wallpaper;
@@ -131,6 +155,7 @@ void setup() {
   SCREENS[SCREEN_IMAGEVIEWER] = doImageViewer;
   SCREENS[SCREEN_PASSWORDMAN] = doPassMan;
   SCREENS[SCREEN_OUTPUTMUX]   = doOutputMultiplexor;
+	SCREENS[SCREEN_MEDIADECK]		= doMediaController;
   //SCREENS[SCREEN_CROSSHAIRDEMO] = doCrosshairDemo;
 
   // Set RTC, run saftey check
@@ -144,6 +169,8 @@ void setup() {
   // Initialize Display and Touch Sensor
   sm.initDevices();
   if (sm.sd->exists("/userSettings.cfg")) {
+  	sm.scanForOutputs();
+		sm.disableAllOutputs();
     sm.loadUserSettings("/userSettings.cfg");
     sm.setScreen(SCREEN_HOME);
   }
@@ -167,7 +194,7 @@ void setup() {
     memset(fileListBuff[i], '\0', MAX_FILENAME_LENGTH);
   }
 
-  sm.scanForOutputs();
+	//sm.enableOutput(0);
   sm.resetTouch();
   sm.updateTouchStatus();
 }
@@ -254,11 +281,11 @@ void OnHIDExtrasPress(uint32_t top, uint16_t key)
       Keyboard.set_modifier(modMask);
       Keyboard.press(key | 0xE400);
     }
-    sm.passKeyToOutputs(1, modMask, key);
+    sm.passKeyToOutputs(1, modMask, key | 0xE400);
   }
   sm.incNumKeysPressed();
   sm.setModifiers(modMask);
-  sm.setPressedKey(key);
+  sm.setPressedKey(key | 0xE400);
 
   return;
 }
@@ -271,11 +298,11 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key)
       Keyboard.set_modifier(modMask);
       Keyboard.release(key | 0xE400);
     }
-    sm.passKeyToOutputs(0, modMask, key);
+    sm.passKeyToOutputs(0, modMask, key | 0xE400);
   }
   sm.decNumKeysPressed();
   sm.setModifiers(modMask);
-  sm.setReleasedKey(key);
+  sm.setReleasedKey(key | 0xE400);
 
   return;
 }
