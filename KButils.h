@@ -4,6 +4,7 @@
 #define SCREEN_IMAGEVIEWER 2  //
 #define SCREEN_PASSWORDMAN 3  // Password Manager
 #define SCREEN_OUTPUTMUX 4    // Output multiplexor
+#define SCREEN_MEDIADECK 5		// Media Controller
 
 //#define SCREEN_CROSSHAIRDEMO 1 // stuff to do after calibration finished
 #include "keyLookUp.h"              // OEM key lookup table (US) and converter
@@ -16,5 +17,6 @@
 #include "imageViewer.h"      // Basic image viewer
 #include "passwordManager.h"  // Provides encrypted password manager
 #include "outputmux.h"        // Select outputs for keystroke passthrough
+#include "mediaController.h"	// Media function screen (play, pause, volume, etc) w/ selectable output
 
 #include "dialogue.h"
