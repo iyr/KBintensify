@@ -14,6 +14,7 @@
 #include <sdios.h>
 
 #include "smStruct.h"
+#include "extraSymbols.h"
 #include "dialogue.h"
 #include "buttons.h"
 #include <t3nfonts.h>
