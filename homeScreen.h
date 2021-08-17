@@ -14,8 +14,10 @@
 #include <sdios.h>
 
 #include <TimeLib.h>  // Provide Real-time clock
+#include <t3nfonts.h>
 #include "smStruct.h"
 #include "buttons.h"
+#include "extraSymbols.h"
 
 time_t getTeensy3Time(void);
 
