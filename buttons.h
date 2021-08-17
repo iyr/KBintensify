@@ -34,6 +34,24 @@ bool doIconTextButton(
       stateMachine*     sm          // Statemachine
       );
 
+// Draws a button with two glyph symbols side-by-side
+// Variable size
+// Returns True if the button has been pressed
+bool doDoubleIconButton(
+      const uint16_t    posX,       // X-Position to draw button
+      const uint16_t    posY,       // Y- Position to draw button
+      const uint8_t     radX,       // X-radius of the button
+      const uint8_t     radY,       // Y-radius of the button
+      const int8_t      Yadjust,    // used for fine-tuning troublesome glyphs
+      ILI9341_t3_font_t symbolFont, // Font for shortcut symbol glyph
+      const char        symbolA,     // shortcut symbol glyph
+      const char        symbolB,     // shortcut symbol glyph
+      const uint16_t    bgColor,    // Button background color
+      const uint16_t    dtColor,    // Button details/accents color
+      const bool        drawBorder, // Draw button border
+      stateMachine*     sm          // Statemachine
+      );
+
 // Draws a button with just a glyph symbol
 // Variable size
 // Returns True if the button has been pressed

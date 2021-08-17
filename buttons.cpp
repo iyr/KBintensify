@@ -18,8 +18,8 @@ bool doIconTextButton(
       ){
 
   // Convenience placeholders
-  const uint16_t TouchX = sm->getTouchX();
-  const uint16_t TouchY = sm->getTouchY();
+  const uint16_t 	TouchX = sm->getTouchX();
+  const uint16_t 	TouchY = sm->getTouchY();
 
   // Draw Button background
   sm->tft->fillRoundRect(
@@ -62,8 +62,7 @@ bool doIconTextButton(
   sm->tft->drawString(tmp, 1, posX, Yadjust+(posY-radY/2));
 
   // Highlight Icon if cursor over, but touch not released
-  if (  sm->touchEnabled()  			&&
-				!sm->getTouchPressHeld()	&&
+  if (  //sm->touchEnabled()  			||
         sm->getCurrTouch()  			){
     if (  TouchX <= posX+radX &&
           TouchX >= posX-radX &&
@@ -79,26 +78,86 @@ bool doIconTextButton(
     }
   }
 
-  // Touch released
-  if (  sm->touchEnabled()                        &&
-				!sm->getTouchPressHeld()									&&
-        sm->getPrevTouch() != sm->getCurrTouch()  &&
-        sm->getCurrTouch() == false          ){
-    if (  TouchX <= posX+radX &&
-          TouchX >= posX-radX &&
-          TouchY <= posY+radY &&
-          TouchY >= posY-radY ){
-      // Draw Button background
-      sm->tft->fillRoundRect(
-          posX-radX, posY-radY, 
-          radX*2, radY*2, 
-          min(radX, radY)/3, 
-          dtColor
-          );
-      //sm->resetTouch();
-      //sm->tft->fillRoundRect(posX-28, posY-24, 28*2, 24*2, 8, dtColor);
-      return true;
-    }
+	// Check if cursor is inside button area
+  if (  TouchX <= posX+radX &&
+        TouchX >= posX-radX &&
+        TouchY <= posY+radY &&
+        TouchY >= posY-radY ){
+    // Draw Button background
+    sm->tft->fillRoundRect(
+        posX-radX, posY-radY, 
+        radX*2, radY*2, 
+        min(radX, radY)/3, 
+        dtColor
+        );
+    return true;
+  }
+
+  return false;
+}
+
+// Draws a button with two glyph symbols side-by-side
+// Variable size
+// Returns True if the button has been pressed
+bool doDoubleIconButton(
+      const uint16_t    posX,       // X-Position to draw button
+      const uint16_t    posY,       // Y- Position to draw button
+      const uint8_t     radX,       // X-radius of the button
+      const uint8_t     radY,       // Y-radius of the button
+      const int8_t      Yadjust,    // used for fine-tuning troublesome glyphs
+      ILI9341_t3_font_t symbolFont, // Font for shortcut symbol glyph
+      const char        symbolA,     // shortcut symbol glyph
+      const char        symbolB,     // shortcut symbol glyph
+      const uint16_t    bgColor,    // Button background color
+      const uint16_t    dtColor,    // Button details/accents color
+      const bool        drawBorder, // Draw button border
+      stateMachine*     sm          // Statemachine
+      ){
+
+  // Convenience placeholders
+  const uint16_t TouchX = sm->getTouchX();
+  const uint16_t TouchY = sm->getTouchY();
+
+  // Draw Button background
+  sm->tft->fillRoundRect(
+      posX-radX, posY-radY, 
+      radX*2, radY*2, 
+      min(radX, radY)/3, 
+      bgColor
+      );
+
+  // Draw Button Icon
+  sm->tft->setFont(symbolFont);
+  sm->tft->setTextColor(dtColor);
+  sm->tft->setTextDatum(BC_DATUM);
+  char tmp[4] = {'\0'};
+  tmp[0] = symbolA;
+  tmp[1] = (char)127;
+  tmp[2] = symbolB;
+  sm->tft->drawString(tmp, 3, posX, Yadjust+(posY-radY/2));
+
+  // Draw Button border
+  if (drawBorder)
+    sm->tft->drawRoundRect(
+        posX-radX, posY-radY, 
+        radX*2, radY*2, 
+        min(radX, radY)/3, 
+        dtColor
+        );
+
+	// Check if cursor is inside button area
+  if (  TouchX <= posX+radX &&
+        TouchX >= posX-radX &&
+        TouchY <= posY+radY &&
+        TouchY >= posY-radY ){
+    // Draw Button background
+    sm->tft->fillRoundRect(
+        posX-radX, posY-radY, 
+        radX*2, radY*2, 
+        min(radX, radY)/3, 
+        dtColor
+        );
+    return true;
   }
 
   return false;
@@ -150,25 +209,19 @@ bool doIconButton(
         dtColor
         );
 
-  // Touch released
-  if (  sm->touchEnabled()                        &&
-				!sm->getTouchPressHeld()									&&
-        sm->getPrevTouch() != sm->getCurrTouch()  &&
-        sm->getCurrTouch() == false               ){
-    if (  TouchX <= posX+radX &&
-          TouchX >= posX-radX &&
-          TouchY <= posY+radY &&
-          TouchY >= posY-radY ){
-      // Draw Button background
-      sm->tft->fillRoundRect(
-          posX-radX, posY-radY, 
-          radX*2, radY*2, 
-          min(radX, radY)/3, 
-          dtColor
-          );
-      //sm->resetTouch();
-      return true;
-    }
+	// Check if cursor is inside button area
+  if (  TouchX <= posX+radX &&
+        TouchX >= posX-radX &&
+        TouchY <= posY+radY &&
+        TouchY >= posY-radY ){
+    // Draw Button background
+    sm->tft->fillRoundRect(
+        posX-radX, posY-radY, 
+        radX*2, radY*2, 
+        min(radX, radY)/3, 
+        dtColor
+        );
+    return true;
   }
 
   return false;
