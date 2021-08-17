@@ -2,10 +2,10 @@
 #include "textInputField.h"
 #include <t3nfonts.h>
 
-#define PM_STATE_OPENDB 0
-#define PM_STATE_EDITDB 1
-#define PM_STATE_DISPDB 2
-#define PM_STATE_EDITLT 3
+//#define PM_STATE_OPENDB 0
+//#define PM_STATE_EDITDB 1
+//#define PM_STATE_DISPDB 2
+//#define PM_STATE_EDITLT 3
 
 #define FIELD_LENGTH 256
 
@@ -26,19 +26,29 @@ bool key_fileValid(const char* filePath, stateMachine* sm){
 
 FLASHMEM void doPassMan(stateMachine* sm){
 
+	static bool			createMode = false;		// distinguish between editing vs creating an entry/db
   static uint8_t  currentSubScreen = 0;
+	Serial.println(currentSubScreen);
   char            loremIpsum[FIELD_LENGTH] = {'\0'};
 
   uint16_t        offsetX = 2,
                   offsetY = 20;
 
-  // Convenience placeholders
+  // Convenience variables
   const   uint16_t  accentsColor  = sm->getDetailsColor();
   const   uint16_t  primaryColor  = sm->getPrimaryColor();
   const   uint16_t  averageColor  = sm->getAverageColor();
   const   uint16_t  primaryColorI = sm->getPrimaryColorInverted();
-
   const   uint16_t  pressedKey    = sm->getPressedKey();
+
+	const		uint8_t		PM_STATE_OPENDB = 0;
+	const		uint8_t		PM_STATE_EDITDB = 1;
+	const		uint8_t		PM_STATE_DISPDB = 2;
+	const		uint8_t		PM_STATE_EDITLT = 3;
+
+	const		bool			screenWasPressed			= sm->screenWasPressed();
+	const		bool			screenWasLongPressed	= sm->screenWasLongPressed();
+	const		bool			screenWasReleased			= sm->screenWasReleased();
 
   // Size of UI buttons
   const   uint8_t   buttonRadX    = 27;
@@ -49,7 +59,8 @@ FLASHMEM void doPassMan(stateMachine* sm){
   sm->tft->fillScreenHGradient(primaryColor-1, averageColor);
   switch(currentSubScreen) {
 
-    case PM_STATE_OPENDB:
+    case (uint8_t)PM_STATE_OPENDB:
+			{
       static uint16_t passCursor  = 0;
       static uint16_t dbfpCursor  = 0;
       static uint16_t kyfpCursor  = 0;
@@ -164,7 +175,7 @@ FLASHMEM void doPassMan(stateMachine* sm){
             offsetX, offsetY,
             buttonRadX, buttonRadY, 0,
             AwesomeF000_20,
-            (char)124,  // Crossed eye; obscure visibility
+            (char)124,
             primaryColor,
             accentsColor,
             sm)){
@@ -238,7 +249,7 @@ FLASHMEM void doPassMan(stateMachine* sm){
             offsetX, offsetY,
             buttonRadX, buttonRadY, 0,
             AwesomeF000_20,
-            (char)124,  // Crossed eye; obscure visibility
+            (char)124,
             primaryColor,
             accentsColor,
             sm)){
@@ -272,8 +283,9 @@ FLASHMEM void doPassMan(stateMachine* sm){
             (char)88,  // Confirm check mark 
             primaryColor,
             (strlen(passwordField)>7)?accentsColor:averageColor,
-            sm) &&
-          strlen(passwordField) > 7){
+            sm) 										&&
+					screenWasPressed					&&
+          strlen(passwordField) > 7	){
       }
 
       //
@@ -287,12 +299,16 @@ FLASHMEM void doPassMan(stateMachine* sm){
             (char)85,  // Plus sign 
             primaryColor,
             accentsColor,
-            sm)){
+            sm)									&&
+					screenWasPressed			){
+					currentSubScreen = (uint8_t)PM_STATE_EDITDB;
+					createMode = true;
       }
 
       //
       //  Draw Cancel button
       //
+			/*
       offsetX -= 5*(buttonRadX+1);
       if (doIconButton(
             offsetX, offsetY,
@@ -301,22 +317,50 @@ FLASHMEM void doPassMan(stateMachine* sm){
             (char)87,  // X/cancel
             primaryColor,
             accentsColor,
-            sm)){
+            sm)									&&
+					screenWasReleased			){
       }
-      break;
+			*/
+			} break;
 
-    case PM_STATE_EDITDB:
+    case (uint8_t)PM_STATE_EDITDB:
+			{
+      //
+      //  Draw Cancel button
+      //
+  		offsetX=34;//+2*(buttonRadX+1);
+  		offsetY=44;//+51*3;
+      if (doIconButton(
+            offsetX, offsetY,
+            //DISP_WIDTH>>2, DISP_HEIGHT>>2,
+            buttonRadX, buttonRadY+4, 0,
+            AwesomeF000_20,
+            (char)87,  // X/cancel
+            primaryColor,
+            accentsColor,
+            //sm);
+            sm)									&&
+					screenWasReleased			){
+				if (createMode) currentSubScreen = (uint8_t)PM_STATE_OPENDB;
+				createMode = false;
+      }
+			} break;
 
-      break;
+    case (uint8_t)PM_STATE_DISPDB:
+			{
 
-    case PM_STATE_DISPDB:
+			} break;
 
-      break;
+    case (uint8_t)PM_STATE_EDITLT:
+			{
 
-    case PM_STATE_EDITLT:
+			} break;
 
-      break;
-
+		default:
+			Serial.println("DEFAULT CASE");
+			currentSubScreen = PM_STATE_OPENDB;
+			createMode = false;
+			break;
   }
   //sm->tft->setTextDatum(TC_DATUM);
   //sm->tft->setFont(AwesomeF080_96);
