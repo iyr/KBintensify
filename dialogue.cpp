@@ -55,6 +55,10 @@ FLASHMEM bool doFileOpen(
   const   uint8_t   buttonRadX    = 27;
   const   uint8_t   buttonRadY    = 19;
 
+	const		bool			screenWasPressed			= sm->screenWasPressed();
+	const		bool			screenWasLongPressed	= sm->screenWasLongPressed();
+	const		bool			screenWasReleased			= sm->screenWasReleased();
+
   // Return value
   bool              selectionMade = false;
 
@@ -239,7 +243,8 @@ FLASHMEM bool doFileOpen(
         (char)119,  // Up arrow
         primaryColor,
         (numFiles>1)?accentsColor:averageColor,
-        sm)){
+        sm)							&&
+			screenWasPressed	){
     if (selectedFile <= 0)  // wrap selection to end if at top
       selectedFile = numFiles-1;
     else 
@@ -262,7 +267,8 @@ FLASHMEM bool doFileOpen(
         (char)120,  // Down arrow
         primaryColor,
         (numFiles>1)?accentsColor:averageColor,
-        sm)){
+        sm)							&&
+			screenWasPressed	){
     if (selectedFile+1 >= numFiles) // wrap selection to top if at bottom
       selectedFile = 0;
     else 
@@ -289,9 +295,9 @@ FLASHMEM bool doFileOpen(
         (char)88,
         primaryColor,
         (fileIsValid)?accentsColor:averageColor,
-        sm)
-      && 
-      fileIsValid  ){
+        sm)							&&
+			screenWasReleased	&&
+      fileIsValid  			){
     strncat(fileNameBuff, fileListBuff[selectedFile], MAX_FILEPATH_LENGTH);
     memcpy(filePath, fileNameBuff, MAX_FILEPATH_LENGTH);
 
@@ -307,8 +313,7 @@ FLASHMEM bool doFileOpen(
 
   offsetX -= (buttonRadX+1)*2;
   // Enter directory
-  if (numFiles > 0  
-      &&
+  if (numFiles > 0        			&&
       doIconButton(
         offsetX, offsetY,
         buttonRadX, buttonRadY,  0,
@@ -316,9 +321,9 @@ FLASHMEM bool doFileOpen(
         (char)21,
         primaryColor,
         (lastChar == '/')?accentsColor:averageColor,
-        sm)         
-      &&
-      !selectionMade){
+        sm)         		&&
+			screenWasPressed	&&
+      !selectionMade		){
 
     // Enter (Sub)Folder, rebuild File List
     if (lastChar == '/') {
@@ -342,9 +347,9 @@ FLASHMEM bool doFileOpen(
         (char)18,
         primaryColor,
         (strlen(fileNameBuff)>1)?accentsColor:averageColor,
-        sm)         
-      &&
-      !selectionMade){
+        sm)         		&&
+			screenWasPressed	&&
+      !selectionMade		){
 
     // Shave off top directory from path
     uint8_t curDirInd = 0,
@@ -373,9 +378,9 @@ FLASHMEM bool doFileOpen(
         (char)34,
         primaryColor,
         (strlen(fileNameBuff)>1)?accentsColor:averageColor,
-        sm)         
-      &&
-      !selectionMade){
+        sm)         		&&
+			screenWasPressed	&&
+      !selectionMade		){
     selectedFile  = 0;
     numFiles      = -1;
     lowerLim      = 0;
@@ -393,9 +398,9 @@ FLASHMEM bool doFileOpen(
         (char)87,
         primaryColor,
         accentsColor,
-        sm)         
-      &&
-      !selectionMade){
+        sm)         		&&
+			screenWasReleased	&&
+      !selectionMade		){
     selectedFile  = 0;
     numFiles      = -1;
     lowerLim      = 0;
@@ -407,19 +412,17 @@ FLASHMEM bool doFileOpen(
   }
 
   // reset vars if user exits/returns to home screen via home button
-  if (  sm->getPrevTouch() != sm->getCurrTouch()  &&
-        sm->getCurrTouch() == false          ){
-    if (  TouchX <= 2*buttonRadX             &&
-          TouchX >= 0                        &&
-          TouchY <= DISP_HEIGHT-2*buttonRadY &&
-          TouchY >= DISP_HEIGHT              ){
-      selectedFile  = 0;
-      numFiles      = -1;
-      lowerLim      = 0;
-      upperLim      = numListings;
-      memset(fileNameBuff, '\0', MAX_FILEPATH_LENGTH);
-      strcpy(fileNameBuff, "/");
-    }
+  if (  screenWasPressed										&&
+				TouchX <= 2*buttonRadX             	&&
+        TouchX >= 0                        	&&
+        TouchY <= DISP_HEIGHT-2*buttonRadY 	&&
+        TouchY >= DISP_HEIGHT              	){
+    selectedFile  = 0;
+    numFiles      = -1;
+    lowerLim      = 0;
+    upperLim      = numListings;
+    memset(fileNameBuff, '\0', MAX_FILEPATH_LENGTH);
+    strcpy(fileNameBuff, "/");
   }
 
   if (selectionMade){
