@@ -55,9 +55,10 @@ FLASHMEM bool doFileOpen(
   const   uint8_t   buttonRadX    = 27;
   const   uint8_t   buttonRadY    = 19;
 
-	const		bool			screenWasPressed			= sm->screenWasPressed();
-	const		bool			screenWasLongPressed	= sm->screenWasLongPressed();
-	const		bool			screenWasReleased			= sm->screenWasReleased();
+  const   bool      screenWasPressed      = sm->screenWasPressed();
+  const   bool      screenWasLongPressed  = sm->screenWasLongPressed();
+  const   bool      screenWasReleased     = sm->screenWasReleased();
+  const   bool      actionRepeat          = sm->getRepeatAction();
 
   // Return value
   bool              selectionMade = false;
@@ -120,7 +121,7 @@ FLASHMEM bool doFileOpen(
     // Set directory to open
     memset(fileNameBuff, '\0', MAX_FILEPATH_LENGTH);
     strcpy(fileNameBuff, "/");
-    File tmpFile = sm->sd->open((const char *)fileNameBuff);
+    FsFile tmpFile = sm->sd->open((const char *)fileNameBuff);
     numFiles = getDirectoryContents(tmpFile, &fileListBuff);
     alphabetize(fileListBuff, numFiles);
     upperLim = min(min(MAX_FILELIST_LENGTH, numFiles), numListings);
@@ -243,12 +244,19 @@ FLASHMEM bool doFileOpen(
         (char)119,  // Up arrow
         primaryColor,
         (numFiles>1)?accentsColor:averageColor,
-        sm)							&&
-			screenWasPressed	){
-    if (selectedFile <= 0)  // wrap selection to end if at top
-      selectedFile = numFiles-1;
-    else 
-      selectedFile -= 1;
+        sm)             &&
+      (screenWasPressed || actionRepeat)  ){
+    if (screenWasPressed) {
+      if (selectedFile <= 0)  // wrap selection to end if at top
+        selectedFile = numFiles-1;
+      else 
+        selectedFile -= 1;
+    } else if (actionRepeat) {
+      if (selectedFile <= 0)  // Stop auto-decrement at end of list
+        selectedFile = 0;
+      else 
+        selectedFile -= 1;
+    }
 
     selectedFile *= (int)(numFiles > 0);
 
@@ -267,12 +275,20 @@ FLASHMEM bool doFileOpen(
         (char)120,  // Down arrow
         primaryColor,
         (numFiles>1)?accentsColor:averageColor,
-        sm)							&&
-			screenWasPressed	){
-    if (selectedFile+1 >= numFiles) // wrap selection to top if at bottom
-      selectedFile = 0;
-    else 
-      selectedFile += 1;
+        sm)             &&
+      (screenWasPressed || actionRepeat)  ){
+
+    if (screenWasPressed) {
+      if (selectedFile+1 >= numFiles) // wrap selection to top if at bottom
+        selectedFile = 0;
+      else 
+        selectedFile += 1;
+    } else if (actionRepeat) {
+      if (selectedFile+1 >= numFiles) // Stop auto-increment at end of list
+        selectedFile = numFiles-1;
+      else 
+        selectedFile += 1;
+    }
 
     selectedFile *= (int)(numFiles > 0);
 
@@ -295,9 +311,9 @@ FLASHMEM bool doFileOpen(
         (char)88,
         primaryColor,
         (fileIsValid)?accentsColor:averageColor,
-        sm)							&&
-			screenWasReleased	&&
-      fileIsValid  			){
+        sm)             &&
+      screenWasReleased &&
+      fileIsValid       ){
     strncat(fileNameBuff, fileListBuff[selectedFile], MAX_FILEPATH_LENGTH);
     memcpy(filePath, fileNameBuff, MAX_FILEPATH_LENGTH);
 
@@ -313,7 +329,7 @@ FLASHMEM bool doFileOpen(
 
   offsetX -= (buttonRadX+1)*2;
   // Enter directory
-  if (numFiles > 0        			&&
+  if (numFiles > 0              &&
       doIconButton(
         offsetX, offsetY,
         buttonRadX, buttonRadY,  0,
@@ -321,14 +337,14 @@ FLASHMEM bool doFileOpen(
         (char)21,
         primaryColor,
         (lastChar == '/')?accentsColor:averageColor,
-        sm)         		&&
-			screenWasPressed	&&
-      !selectionMade		){
+        sm)             &&
+      screenWasPressed  &&
+      !selectionMade    ){
 
     // Enter (Sub)Folder, rebuild File List
     if (lastChar == '/') {
       strncat(fileNameBuff, fileListBuff[selectedFile], MAX_FILEPATH_LENGTH);
-      File tmpFile = sm->sd->open((const char *)fileNameBuff);
+      FsFile tmpFile = sm->sd->open((const char *)fileNameBuff);
       numFiles = getDirectoryContents(tmpFile, &fileListBuff);
       alphabetize(fileListBuff, numFiles);
       lowerLim = 0;
@@ -347,9 +363,9 @@ FLASHMEM bool doFileOpen(
         (char)18,
         primaryColor,
         (strlen(fileNameBuff)>1)?accentsColor:averageColor,
-        sm)         		&&
-			screenWasPressed	&&
-      !selectionMade		){
+        sm)             &&
+      screenWasPressed  &&
+      !selectionMade    ){
 
     // Shave off top directory from path
     uint8_t curDirInd = 0,
@@ -360,7 +376,7 @@ FLASHMEM bool doFileOpen(
       fileNameBuff[i] = '\0';
 
     // Enter (Sub)Folder, rebuild File List
-    File tmpFile = sm->sd->open((const char *)fileNameBuff);
+    FsFile tmpFile = sm->sd->open((const char *)fileNameBuff);
     numFiles = getDirectoryContents(tmpFile, &fileListBuff);
     alphabetize(fileListBuff, numFiles);
     lowerLim = 0;
@@ -378,9 +394,9 @@ FLASHMEM bool doFileOpen(
         (char)34,
         primaryColor,
         (strlen(fileNameBuff)>1)?accentsColor:averageColor,
-        sm)         		&&
-			screenWasPressed	&&
-      !selectionMade		){
+        sm)             &&
+      screenWasPressed  &&
+      !selectionMade    ){
     selectedFile  = 0;
     numFiles      = -1;
     lowerLim      = 0;
@@ -398,9 +414,9 @@ FLASHMEM bool doFileOpen(
         (char)87,
         primaryColor,
         accentsColor,
-        sm)         		&&
-			screenWasReleased	&&
-      !selectionMade		){
+        sm)             &&
+      screenWasReleased &&
+      !selectionMade    ){
     selectedFile  = 0;
     numFiles      = -1;
     lowerLim      = 0;
@@ -412,11 +428,13 @@ FLASHMEM bool doFileOpen(
   }
 
   // reset vars if user exits/returns to home screen via home button
-  if (  screenWasPressed										&&
-				TouchX <= 2*buttonRadX             	&&
-        TouchX >= 0                        	&&
-        TouchY <= DISP_HEIGHT-2*buttonRadY 	&&
-        TouchY >= DISP_HEIGHT              	){
+  if (  screenWasPressed                    &&
+        //TouchX <= 2*buttonRadX              &&
+        TouchX <= 2*28                      &&
+        TouchX >= 0                         &&
+        //TouchY <= DISP_HEIGHT-2*buttonRadY  &&
+        TouchY <= DISP_HEIGHT-2*24          &&
+        TouchY >= DISP_HEIGHT               ){
     selectedFile  = 0;
     numFiles      = -1;
     lowerLim      = 0;
@@ -438,21 +456,21 @@ FLASHMEM bool doFileOpen(
   }
 
   return selectionMade;
-}
+};
 
 /*
  * Receives a directory and pointer to pointer to array of pointers
  * to fill in an array of strings representing file names
  * Returns number of files/folders in directory
  */
-FLASHMEM uint32_t getDirectoryContents(File dir, char*** filelist){
+FLASHMEM uint32_t getDirectoryContents(FsFile dir, char*** filelist){
 
   uint32_t numFiles   = 0;
   uint32_t fileIndex  = 0;
 
   // Determine number of files/folders in directory
   while (true){
-    File entry = dir.openNextFile();
+    FsFile entry = dir.openNextFile();
     if (entry) numFiles++; else break;
   }
 
@@ -460,7 +478,7 @@ FLASHMEM uint32_t getDirectoryContents(File dir, char*** filelist){
 
   // Iterate through directory files, exit when out of files
   while (fileIndex < MAX_FILELIST_LENGTH){
-    File entry = dir.openNextFile();
+    FsFile entry = dir.openNextFile();
 
     // If entry valid, add filename to filelist, otherwise, break
     if (entry){
@@ -488,4 +506,317 @@ FLASHMEM uint32_t getDirectoryContents(File dir, char*** filelist){
   }
 
   return numFiles;
-}
+};
+
+FLASHMEM uint8_t doMultiOptMessage(
+      const char          Symbol,
+      ILI9341_t3_font_t   SymbolFont,
+      const char*         Title,
+      const uint8_t       TitleLen,
+            char*         BodyText,
+      const uint16_t      BodyLen,
+      const uint8_t       numButtons,
+      const char**        buttonTexts,
+      const uint8_t       buttonTextLens,
+      const uint16_t*     buttonColors,
+      ILI9341_t3_font_t*  buttonFonts,
+      stateMachine*       sm
+    ){
+  sm->tft->writeRect(0, 0, DISP_WIDTH, DISP_HEIGHT, sm->getBackBuffer());
+  //dialogueEntered = true;
+  sm->enableTouchInput();
+  sm->disableDrawing();
+
+  // Used for drawing individual glyphs
+  char iconGlyph[3] = {'\0'};
+
+  // Used for file/directory navigation
+  static  uint16_t  selectedFile  = 0;
+  static  int16_t   numFiles      = -1;
+
+  // UI element position place-holders
+  uint16_t          offsetX       = 24,
+                    offsetY       = 24;
+
+  // Used for drawing a finite range of listings
+  const   uint8_t   numListings   = 5;
+  static  uint16_t  lowerLim      = 0;
+  static  uint16_t  upperLim      = numListings;
+
+  // Convenience placeholders
+  const   uint16_t  accentsColor  = sm->getDetailsColor();
+  const   uint16_t  primaryColor  = sm->getPrimaryColor();
+  const   uint16_t  averageColor  = sm->getAverageColor();
+  const   uint16_t  TouchX        = sm->getTouchX();
+  const   uint16_t  TouchY        = sm->getTouchY();
+
+  // Size of UI buttons
+  const   uint8_t   buttonRadX    = 32;
+  const   uint8_t   buttonRadY    = 20;
+
+  const   bool      screenWasPressed      = sm->screenWasPressed();
+  const   bool      screenWasLongPressed  = sm->screenWasLongPressed();
+  const   bool      screenWasReleased     = sm->screenWasReleased();
+  const   bool      repeatAction          = sm->getRepeatAction();
+
+  // Draw Backrop w/border
+  sm->tft->fillRect(
+      offsetX,
+      offsetY,
+      DISP_WIDTH-offsetX*2,
+      DISP_HEIGHT-offsetY*3,
+      primaryColor
+      );
+  offsetX += 3;
+  offsetY += 3;
+  sm->tft->drawRoundRect(
+      offsetX,
+      offsetY,
+      DISP_WIDTH-offsetX*2,
+      DISP_HEIGHT-offsetY*3+3,
+      4,
+      accentsColor
+      );
+
+  // Draw Dividing lines
+  sm->tft->drawLine(
+      offsetX, 
+      offsetY+3*offsetY/4, 
+      DISP_WIDTH-offsetX-1, 
+      offsetY+3*offsetY/4,  
+      accentsColor
+      );
+  // Draw dialogue title text
+  sm->tft->setTextDatum(TL_DATUM);
+  sm->tft->setFont(SymbolFont);
+  const char tmc[] = {Symbol};
+  sm->tft->drawString(tmc, 1, offsetX+4, offsetY+2);
+  sm->tft->setFont(Arial_12);
+  sm->tft->drawString(Title, (uint16_t)TitleLen, offsetX+24, offsetY+4);
+
+  static uint16_t startLineInd  = 0;      // Index of where to start drawing
+  drawTextField(
+      offsetX,
+      offsetY,
+      0, 0,
+      BodyText,
+      BodyLen,
+      Arial_12,
+      startLineInd,
+      sm);
+
+  offsetX = 286;
+  offsetY = 180 - buttonRadY*3;
+  
+  if(doIconButton(
+        offsetX, offsetY,
+        buttonRadX, buttonRadY, 0,
+        AwesomeF000_20, 
+        (char)120,  // Down arrow
+        primaryColor,
+        accentsColor,
+        sm)){
+        //sm)             &&
+      //screenWasPressed  ){
+    if (screenWasPressed || repeatAction)
+      startLineInd = findNext(BodyText, BodyLen, startLineInd, '\n');
+  }
+
+  offsetY -= buttonRadY<<1;
+  if(doIconButton(
+        offsetX, offsetY,
+        buttonRadX, buttonRadY, 0,
+        AwesomeF000_20, 
+        (char)119,  // Up arrow
+        primaryColor,
+        accentsColor,
+        sm)){
+        //sm)             &&
+      //screenWasPressed  ){
+    if (screenWasPressed || repeatAction)
+      startLineInd = findPrev(BodyText, BodyLen, startLineInd, '\n');
+  }
+
+  offsetX = 286;
+  offsetY = 180;
+  char tms[32] = {'\0'};
+  for (uint8_t i = 0; i < numButtons; i ++) {
+    strcpy(tms, buttonTexts[i]);
+    if (doTextButton(
+          offsetX, offsetY,
+          buttonRadX, buttonRadY,
+          tms,
+          buttonFonts[i], 
+          primaryColor,
+          buttonColors[i],
+          sm)             &&
+        screenWasReleased ){
+#ifdef DEBUG
+      Serial.print("Dialogue Button Pressed: ");
+      Serial.println(i+1);
+#endif
+      return i+1;
+    }
+    memset(tms, '\0', 32);
+    offsetX -= (buttonRadX+2)*2;
+  }
+
+  sm->tft->updateScreen();
+  return 0;
+};
+
+// Finds the index of next byte matching char,
+// returns input index if no match is found
+const uint16_t findNext(
+    const char*     text,
+    const uint16_t  textLen,
+    const uint16_t  currIndex,
+    const char      searchTarget
+    ){
+#ifdef DEBUG
+  Serial.print("Look for next \"");
+  Serial.print(searchTarget);
+  Serial.print("\", uint8_t: ");
+  Serial.print((uint8_t)searchTarget);
+  Serial.println();
+#endif
+  uint16_t i = currIndex;
+  if (text[i] == searchTarget) i++;
+  for (i = i; i < textLen-1; i++){
+#ifdef DEBUG
+    Serial.print("Scanning char: ");
+    Serial.print(text[i]);
+    Serial.print(", uint8_t: ");
+    Serial.print((uint8_t)text[i]);
+    Serial.print(", (index): ");
+    Serial.print(i);
+    Serial.println();
+#endif
+    if (text[i] == searchTarget){
+#ifdef DEBUG
+      Serial.print("Found next char at index: ");
+      Serial.print(i);
+      Serial.println();
+#endif
+      return i;
+    }
+  }
+#ifdef DEBUG
+  Serial.print("NO next char found, index: ");
+  Serial.print(currIndex);
+  Serial.println();
+#endif
+  return currIndex;
+};
+
+// Finds the index of prev byte matching char,
+// returns 0 if no match is found
+const uint16_t findPrev(
+    const char*     text,
+    const uint16_t  textLen,
+    const uint16_t  currIndex,
+    const char      searchTarget
+    ){
+  if (currIndex >= textLen || currIndex == 0){
+    return currIndex;
+  }
+#ifdef DEBUG
+  Serial.print("Look for prev \"");
+  Serial.print(searchTarget);
+  Serial.print("\", uint8_t: ");
+  Serial.print((uint8_t)searchTarget);
+  Serial.println();
+#endif
+
+  for (uint16_t i = currIndex-1; i >= 0; i--){
+    if (i == 0) Serial.println("Search has reached start of array");
+    if (text[i] == searchTarget || i == 0){
+#ifdef DEBUG
+      Serial.print("Found Prev char at index: ");
+      Serial.print(i);
+      Serial.println();
+#endif
+      return i;
+    }
+  }
+#ifdef DEBUG
+  Serial.print("NO prev char found, index: ");
+  Serial.print(currIndex);
+  Serial.println();
+#endif
+  return currIndex;
+};
+
+const uint8_t drawTextField(
+          uint16_t    posX, 
+          uint16_t    posY,
+    const uint16_t    fieldWidth,
+    const uint16_t    fieldHeight,
+          char*       text,
+    const uint16_t    textLen,
+    ILI9341_t3_font_t textFont,
+    const uint16_t    currIndex,
+    stateMachine*     sm){
+
+  // Text Area Vars
+  uint16_t        lastLineBreak = 0;
+  uint16_t        lastSpace     = 0;
+  char            subBuff[256]  = {'\0'};
+
+  // Text Boundary place holders
+  int16_t       x1=0, y1=0;
+  uint16_t      w=0, h=0, h1=0;
+  const char heightTest[] = {"jgypq,QW@#|({[`;'_"};
+
+  // Determine max font character height
+  sm->tft->getTextBounds(
+      heightTest, 18,
+      0, 0,
+      //posX+24, posY+24,
+      &x1, &y1,
+      &w, &h1);
+  sm->tft->setTextDatum(TL_DATUM);
+  sm->tft->setFont(textFont);
+
+  // Replace spaces with line breaks where line length has exceeded text box width
+  uint16_t numLineBreaks = 0;
+  for (uint16_t i = 0; i < textLen; i++) {
+    subBuff[i-lastLineBreak] = text[i];
+    sm->tft->getTextBounds(
+        subBuff, i-lastLineBreak, 
+        8, 28,
+        &x1, &y1,
+        &w, &h);
+
+    // Length of line has exceeded width of text box
+    if (w >= DISP_WIDTH-((posX+24)<<1) || i == textLen-1){
+      if (i == textLen-1) i = textLen;
+      else i = lastSpace;           // retrograde i to start of last word
+
+      text[i] = '\n';
+      numLineBreaks++;
+      memset(subBuff, '\0', i-lastLineBreak);   // reset subBuff
+      lastLineBreak = lastSpace+1;  // replace last space with a line break (start of last word)
+    } 
+    if (text[i] == ' ') lastSpace = i;
+  }
+
+  // Draw Text with line breaks
+  lastLineBreak = currIndex;
+  for (uint16_t i = currIndex; i < textLen; i++){
+    subBuff[i-lastLineBreak] = text[i];
+    if ((text[i] == '\n' && i != currIndex) || i == textLen-1){
+      if (i == textLen-1) i = textLen;
+
+      if (posY+28 <= DISP_HEIGHT-100) {
+        sm->tft->drawString(subBuff, i-lastLineBreak, posX+8, posY+28);
+        posY += h1;
+      }
+
+      memset(subBuff, '\0', i-lastLineBreak);   // reset subBuff
+      lastLineBreak = i+1;
+    } 
+  }
+
+  return 0;
+};
