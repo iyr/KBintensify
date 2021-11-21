@@ -9,10 +9,6 @@
 #include <XPT2046_Touchscreen.h>
 #endif
 
-#include <SdFat.h>
-#include <SdFatConfig.h>
-#include <sdios.h>
-
 #include "smStruct.h"
 #include "extraSymbols.h"
 #include "buttons.h"
