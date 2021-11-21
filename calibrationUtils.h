@@ -9,10 +9,6 @@
 #include <XPT2046_Touchscreen.h>
 #endif
 
-#include <SdFat.h>
-#include <SdFatConfig.h>
-#include <sdios.h>
-
 //#define DISP_WIDTH 320
 //#define DISP_HEIGHT 240
 
