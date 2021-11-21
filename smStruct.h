@@ -21,9 +21,8 @@
 #include <XPT2046_Touchscreen.h>
 #endif
 
-#include <SdFat.h>
-#include <SdFatConfig.h>
-#include <sdios.h>
+#include <SD.h>
+
 #include "USBHost_t36.h"            // USB Host Library
 #include <Wire.h>
 
@@ -37,7 +36,12 @@
 
 // Used for drawing dialogue windows over other controls
 // !! back buffer uses ~%30 DMAMEM capacity on Teensy 4.x
-static uint16_t backBuff[DISP_WIDTH*DISP_HEIGHT*2] DMAMEM;
+//static uint16_t backBuff [DISP_WIDTH*DISP_HEIGHT] EXTMEM;
+//static uint16_t wallpaper[DISP_WIDTH*DISP_HEIGHT] EXTMEM;
+//static uint16_t frameBuff[DISP_WIDTH*DISP_HEIGHT] DMAMEM;
+static uint16_t backBuff [DISP_WIDTH*DISP_HEIGHT] DMAMEM;
+static uint16_t wallpaper[DISP_WIDTH*DISP_HEIGHT] DMAMEM;
+static uint16_t frameBuff[DISP_WIDTH*DISP_HEIGHT] FASTRUN;
 
 class stateMachine {
 
@@ -110,6 +114,7 @@ class stateMachine {
     const bool      touchEnabled(void);       // Whether or not touch is enabled
     void            disableTouchInput(void);  //
     void            enableTouchInput(void);   //
+    const bool      getRepeatAction(void);    // Used for generating repititious inputs for long presses
     
     // Utilities for managing screen drawing
     const bool      drawingEnabled(void);
@@ -117,6 +122,8 @@ class stateMachine {
     void            enableDrawing(void);
 
     // Utilities for setting/getting *general* keystroke passthrough
+    const uint16_t  getKPM(void);     // Returns Keystrokes per minute
+    void            incKeyEvents(void); // For measuring keystrokes per minute
     const uint8_t   getNumOutputs(void);  // Returns number of available outputs
     const uint8_t   getActiveOutput(void);  // Returns first lowest address of SOLE active outputs, 255 otherwise
     const uint8_t   getNumActOutputs(void);   // Returns number of Active outputs
@@ -169,6 +176,10 @@ class stateMachine {
     void            setBLpin(const uint8_t pin);          // Set the physical pin the BL is attached to
     const uint16_t  getBLlev(void);                       // Get BL level constrained by min and max
 
+    // Pointer to system wallpaper
+    uint16_t*       userBackground  = wallpaper;
+    uint16_t*       getWallpaperPtr(void);
+    void            drawWallpaper(void);
   private:
 
     // Buffer of i2c Output devices+capabilities as Bit Masks
@@ -192,7 +203,7 @@ class stateMachine {
     // Variables for controlling display backlight (BL)
     uint32_t  BLfuncTimer = millis(); // Used to check if its time to call BL function
     uint32_t  BLfuncRate  = 500;      // How often, in milliseconds, the BL function is called
-    uint16_t  BLthresh    = 4;        // if BLfunc is greater than this, BL brightens, else BL darkens
+    uint16_t  BLthresh    = 7;        // if BLfunc is greater than this, BL brightens, else BL darkens
     uint16_t  BLLevel     = 255;      // May exceed min / max range, getter method constrains to min / max
     uint16_t  minBLLevel  = 0;        // Min value getBLlev() will return
     uint16_t  maxBLLevel  = 255;      // Max value getBLlev() will return
@@ -212,15 +223,21 @@ class stateMachine {
     uint16_t*       backBuffer      = backBuff;
 
     // Vars related to parsing key inputs
+    uint32_t        keyPressTimer   = 0;      // how long a key has been pressed
+    uint32_t        kspmTimer       = 0;
+    uint32_t        kspmTimer0      = 0;
+    uint32_t        kspmTimerLast   = 0;
+    uint16_t        kpmBuff[6]      = {0};
+    const uint16_t  keyHoldTime     = 500;    // how long to hold a key to reg
     uint16_t        pressedKeys[PRESSED_KEYS_BUFF_SIZE];
     uint16_t        pressedKey      = 0;      // Most recently pressed key
     uint16_t        releasedKey     = 0;      // Most recently released key
+    uint16_t        kspm            = 0;      // Number of keystrokes per minute
+    uint16_t        numKeyEvents    = 0;      // Increments any time a key is pressed or released
     uint8_t         numKeysPressed  = 0;      // Number of current pressed keys
-    const uint16_t  keyHoldTime     = 500;    // how long to hold a key to reg
-    uint32_t        keyPressTimer   = 0;      // how long a key has been pressed
+    uint8_t         modifiers       = 0;      // bitmask of active modifier keys
     bool            keyPressHeld    = false;  // key held long enough to repeat
     bool            keyHoldCanceled = false;  // cancels previous bool if true
-    uint8_t         modifiers       = 0;      // bitmask of active modifier keys
 
     // System colors
     uint16_t        primaryColor    = ILI9341_PURPLE; // UI background color
@@ -250,19 +267,25 @@ class stateMachine {
     bool      screenDrawingEnabled = true;
 
     // Used for handling touchscreen inputs
-    bool      prevTouch = false;  // touch sensor status @end of previous frame
-    bool      currTouch = false;  // touch sensor status @start of current frame
-    uint16_t  TouchX    = 0;      // calibrated X-coordinate of touch input
-    uint16_t  TouchY    = 0;      // calibrated Y-coordinate of touch input
-    uint16_t  TouchX0   = -1;     // calibrated X-coordinate of touch input at first frame of touch press
-    uint16_t  TouchY0   = -1;     // calibrated Y-coordinate of touch input at first frame of touch press
-
-    const uint16_t  touchHoldRadius   = 25;     // Cursor must stay in position, measure in a circle to account for jitter
-    const uint16_t  touchHoldTime     = 500;    // how long to touch the touchscreen to trigger alternate function
-    uint32_t        touchPressTimer   = 0;      // how long the touch screen has been touched
-    bool            touchPressHeld    = false;  // touch held long enough for alternate function
-    bool            prevPressHeld     = false;  // Value of 'touchPressHeld' on previous frame
-    bool            touchHoldCanceled = true;   // cancels previous bool if true
+    uint32_t  TouchUpdateRate   = 10;     // How often, in milliseconds, the touch status is updated
+    uint32_t  TouchUpdateTimer  = 0;      // Time since last touch update
+    uint32_t  touchPressTimer   = 0;      // how long the touch screen has been touched
+    uint16_t  touchHoldRadius   = 25;     // Cursor must stay in position, measure in a circle to account for jitter
+    uint16_t  touchHoldTime     = 500;    // how long to touch the touchscreen to trigger alternate function
+    uint16_t  TouchX            = 0;      // calibrated X-coordinate of touch input
+    uint16_t  TouchY            = 0;      // calibrated Y-coordinate of touch input
+    uint16_t  TouchX0           = -1;     // calibrated X-coordinate of touch input at first frame of touch press
+    uint16_t  TouchY0           = -1;     // calibrated Y-coordinate of touch input at first frame of touch press
+    bool      touchPressHeld    = false;  // touch held long enough for alternate function
+    bool      prevPressHeld     = false;  // Value of 'touchPressHeld' on previous frame
+    bool      touchHoldCanceled = true;   // cancels previous bool if true
+    bool      prevTouch         = false;  // touch sensor status @end of previous frame
+    bool      currTouch         = false;  // touch sensor status @start of current frame
+    
+    // Used for making repititious inputs in the touch screen has been long pressed
+    uint32_t  repeatActionTimer = 0;
+    uint16_t  repeatActionDelay = 59;
+    bool      repeatAction      = false;
 };
 
 const uint16_t invert565color(const uint16_t color);
