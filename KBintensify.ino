@@ -3,20 +3,18 @@
 */
 #include "USBHost_t36.h"            // USB Host Library
 #define TEENSY64
-#include <Adafruit_VCNL4040.h>			// Proximitiy/Ambient Light Sensor library
+#include <Adafruit_VCNL4040.h>      // Proximitiy/Ambient Light Sensor library
 #include <ILI9341_t3n.h>            // Display Library
 #include <ili9341_t3n_font_Arial.h> // Font
 #include <XPT2046_Touchscreen.h>    // Touchscreen sensor Library
 #include <SPI.h>                    // Communication for SPI devices
-#include <SdFat.h>                  // SD card Filesystem
-#include <SdFatConfig.h>
-#include <sdios.h>
+#include <SD.h>                     // SD card Filesystem
 #include <TimeLib.h>                // Real-time clock Library
 #include <Wire.h>                   // Communicate with other chips/mcus
 #include "KButils.h"                // Custom KB-Intensify utilities
 
 #define BL_PIN  5
-#define CS_PIN  8
+#define CS_PIN  6
 #define TFT_DC  9
 #define TFT_CS  10
 #define TFT_RST 24
@@ -64,19 +62,18 @@ File groot;
 //#endif  // SD_FAT_TYPE
 
 // Create a Serial output stream.
-ArduinoOutStream cout(Serial);
+//ArduinoOutStream cout(Serial);
 //------------------------------------------------------------------------------
 // Store error strings in flash to save RAM.
 #define error(s) gsd.errorHalt(&Serial, F(s))
 //------------------------------------------------------------------------------
 //stateMachine sm;
-stateMachine sm 					= stateMachine();
-XPT2046_Touchscreen gts  	= XPT2046_Touchscreen(CS_PIN);
-ILI9341_t3n gtft         	= ILI9341_t3n(TFT_CS, TFT_DC, TFT_RST);
-Adafruit_VCNL4040 proxlux	= Adafruit_VCNL4040();
+stateMachine sm           = stateMachine();
+XPT2046_Touchscreen gts   = XPT2046_Touchscreen(CS_PIN);
+ILI9341_t3n gtft          = ILI9341_t3n(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_VCNL4040 proxlux = Adafruit_VCNL4040();
 
 EXTMEM char fileNameBuff[MAX_FILEPATH_LENGTH];
-EXTMEM uint16_t wallpaper[DISP_WIDTH * DISP_HEIGHT];
 EXTMEM char** fileListBuff;
 
 //=============================================================================
@@ -85,16 +82,23 @@ EXTMEM char** fileListBuff;
 USBHost myusb;
 USBHub hub1(myusb);
 KeyboardController keyboard1(myusb);
+MouseController mouse1(myusb);
 USBHIDParser hid1(myusb); // Needed for parsing hid extras keys
 USBHIDParser hid2(myusb); // Needed for parsing hid extras keys
+
 USBDriver *drivers[]                  = {&keyboard1, &hid1, &hid2};
 #define CNT_DEVICES (sizeof(drivers)/sizeof(drivers[0]))
 const char *driver_names[CNT_DEVICES] = {"KB1", "HID2", "HID2"};
 bool driver_active[CNT_DEVICES]       = {false, false, false};
 
+USBHIDInput *hiddrivers[]             = {&mouse1};
+#define CNT_HID (sizeof(drivers)/sizeof(drivers[0]))
+const char *hid_names[CNT_HID]        = {"mouse"};
+bool hid_active[CNT_DEVICES]          = {false};
+
 // Array of function pointers, passing only the statemachine
 // functions are called by index
-void (* SCREENS[5]) (stateMachine*);
+void (* SCREENS[6]) (stateMachine*);
 
 void doQuack(stateMachine* sm) {
   doHomeScreen(sm);
@@ -111,32 +115,32 @@ void setup() {
   // Initialize State Machine variables
   sm.sd   = &gsd;
   sm.tft  = &gtft;
-	sm.proxlux = &proxlux;
+  sm.proxlux = &proxlux;
   sm.setTS(&gts);
-	sm.setKC(&keyboard1);
+  sm.setKC(&keyboard1);
   sm.setScreen(SCREEN_CALIBRATION);
 
-	// Initialize i3c breakout module bus
-	Wire1.begin();
+  // Initialize i3c breakout module bus
+  Wire1.begin();
 
   // Initialize i2c multi-output bus
   Wire.begin();
 
-	// Initiliaze VCNL4040 proximity light sensor
-	if (!sm.proxlux->begin(96, &Wire1)) {
+  // Initiliaze VCNL4040 proximity light sensor
+  if (!sm.proxlux->begin(96, &Wire1)) {
     Serial.println("Couldn't find VCNL4040 chip");
     while (1);
   }
 
-	// Initialize Display backlight
-	pinMode(BL_PIN, OUTPUT);
+  // Initialize Display backlight
+  pinMode(BL_PIN, OUTPUT);
   for (uint8_t i = 0; i < 255; i++) {
-		analogWrite(BL_PIN, i);
-		delay(5);
-	}
-	analogWriteFrequency(BL_PIN, 585937);
+    analogWrite(BL_PIN, i);
+    delay(5);
+  }
+  analogWriteFrequency(BL_PIN, 585937);
 
-	sm.setBLpin(BL_PIN);
+  sm.setBLpin(BL_PIN);
 
   //sm.currentScreen = SCREEN_CALIBRATION;
   //sm.bgImage = wallpaper;
@@ -155,7 +159,7 @@ void setup() {
   SCREENS[SCREEN_IMAGEVIEWER] = doImageViewer;
   SCREENS[SCREEN_PASSWORDMAN] = doPassMan;
   SCREENS[SCREEN_OUTPUTMUX]   = doOutputMultiplexor;
-	SCREENS[SCREEN_MEDIADECK]		= doMediaController;
+  SCREENS[SCREEN_MEDIADECK]   = doMediaController;
   //SCREENS[SCREEN_CROSSHAIRDEMO] = doCrosshairDemo;
 
   // Set RTC, run saftey check
@@ -169,8 +173,8 @@ void setup() {
   // Initialize Display and Touch Sensor
   sm.initDevices();
   if (sm.sd->exists("/userSettings.cfg")) {
-  	sm.scanForOutputs();
-		sm.disableAllOutputs();
+    sm.scanForOutputs();
+    sm.disableAllOutputs();
     sm.loadUserSettings("/userSettings.cfg");
     sm.setScreen(SCREEN_HOME);
   }
@@ -194,12 +198,17 @@ void setup() {
     memset(fileListBuff[i], '\0', MAX_FILENAME_LENGTH);
   }
 
-	//sm.enableOutput(0);
+  //sm.enableOutput(0);
   sm.resetTouch();
   sm.updateTouchStatus();
 }
 
 void loop() {
+  // Services mouse inputs immediately
+  if (mouse1.available()){
+    //Mouse.move(mouse1.getMouseX(), mouse1.getMouseY());
+  }
+
   //sm.pressedKey = 0;
   //sm.updateInputKeys();
 #ifdef DEBUG
@@ -211,7 +220,6 @@ void loop() {
 #endif
   if (sm.getNumKeysPressed() == 0) sm.clearPressedKeys();
   (* SCREENS[sm.getScreen()])(&sm);
-  sm.updateTouchStatus();
   sm.updateSM();
   drawStatusBars(&sm);
   if (sm.drawingEnabled()) sm.tft->updateScreen();
@@ -239,6 +247,7 @@ void OnRawPress(int key) {
   sm.incNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setPressedKey(key);
+  sm.incKeyEvents();
 
   // Use Escape to "unstick" buggersome key inputs
   if (HID2ArduKEY(key) == KEY_ESC) {
@@ -264,6 +273,7 @@ void OnRawRelease(int key) {
   sm.decNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setReleasedKey(key);
+  sm.incKeyEvents();
 
 #ifdef DEBUG
   Serial.print("HID REL: ");
@@ -286,6 +296,7 @@ void OnHIDExtrasPress(uint32_t top, uint16_t key)
   sm.incNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setPressedKey(key | 0xE400);
+  sm.incKeyEvents();
 
   return;
 }
@@ -303,6 +314,7 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key)
   sm.decNumKeysPressed();
   sm.setModifiers(modMask);
   sm.setReleasedKey(key | 0xE400);
+  sm.incKeyEvents();
 
   return;
 }
