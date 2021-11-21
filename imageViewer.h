@@ -9,11 +9,10 @@
 #include <XPT2046_Touchscreen.h>
 #endif
 
-#include <SdFat.h>
-#include <SdFatConfig.h>
-#include <sdios.h>
+#include <SD.h>
 
 #include "smStruct.h"
 #include "dialogue.h"
+#include "t3nfonts.h"
 
 void doImageViewer(stateMachine* sm);
