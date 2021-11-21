@@ -9,10 +9,6 @@
 #include <XPT2046_Touchscreen.h>
 #endif
 
-#include <SdFat.h>
-#include <SdFatConfig.h>
-#include <sdios.h>
-
 #include <TimeLib.h>  // Provide Real-time clock
 #include <t3nfonts.h>
 #include "smStruct.h"
